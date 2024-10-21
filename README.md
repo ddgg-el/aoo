@@ -9,6 +9,7 @@ in `c_cpp_properties.json` `configurations[0].includePath[<variabili>]`
 "~/Documents/src/max-sdk/source/max-sdk-base/c74support/max-includes",
 "~/Documents/src/max-sdk/source/max-sdk-base/c74support/msp-includes"
 ```
+##### WORKING ON THE MAX EXTERNALS
 
 DO NOT CLONE IT IS NOT READY AT ALL
 ===================================
