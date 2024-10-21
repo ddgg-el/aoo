@@ -10,8 +10,8 @@ in `c_cpp_properties.json` `configurations[0].includePath[<variabili>]`
 "~/Documents/src/max-sdk/source/max-sdk-base/c74support/msp-includes"
 ```
 
-# DO NOT CLONE IT IS NOT READY AT ALL
-
+DO NOT CLONE IT IS NOT READY AT ALL
+===================================
 
 AOO (audio over OSC)
 =====================
