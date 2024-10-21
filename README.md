@@ -1,3 +1,15 @@
+##### VSCODE INCLUDE SETUP
+in `c_cpp_properties.json` `configurations[0].includePath[<variabili>]`
+```
+"${workspaceFolder}/",
+"${workspaceFolder}/pd/src/**",
+"${workspaceFolder}/include/",
+"${workspaceFolder}/deps/opus/include",
+"/Applications/Pd-*.app/Contents/Resources/src",
+"~/Documents/src/max-sdk/source/max-sdk-base/c74support/max-includes",
+"~/Documents/src/max-sdk/source/max-sdk-base/c74support/msp-includes"
+```
+
 AOO (audio over OSC)
 =====================
 

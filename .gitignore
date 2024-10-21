@@ -10,3 +10,7 @@
 *.includes
 build**
 install/**
+
+externals/
+*.mxo
+.vscode/
