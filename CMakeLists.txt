@@ -88,6 +88,10 @@ if (CMAKE_COMPILER_IS_GNUCXX)
     message(STATUS "Build with static runtime libraries: ${AOO_STATIC_RUNTIME}")
 endif()
 
+if(EMSCRIPTEN)
+    add_subdirectory(wasm)
+endif()
+
 #-----------------------------------------------------------------
 # feature tests
 #-----------------------------------------------------------------

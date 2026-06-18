@@ -1,0 +1,19 @@
+{
+  "name": "aoo-web",
+  "private": true,
+  "type": "module",
+  "version": "0.1.0",
+  "description": "Audio Over Osc library for the Browser",
+  "license": "MIT",
+  "author": "Davide Gagliardi",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vite": "^8.0.16"
+  }
+}
