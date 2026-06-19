@@ -1,0 +1,16 @@
+{
+  "name": "aoo-receive",
+  "version": "1.0.0",
+  "description": "a simple aoo receiver application for nodejs",
+  "license": "MIT",
+  "author": "Davide Gagliardi",
+  "type": "module",
+  "main": "main.mjs",
+  "scripts": {
+    "start": "node main.mjs"
+  },
+  "dependencies": {
+    "aoo": "file:../../../wasm/aoo",
+    "naudiodon2": "^2.5.0"
+  }
+}

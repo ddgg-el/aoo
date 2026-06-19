@@ -14,11 +14,10 @@
 .vs**
 .cache
 
-js/
 node_modules/
 
-*.mjs
 .clangd
 
 build**
 install/**
+dist

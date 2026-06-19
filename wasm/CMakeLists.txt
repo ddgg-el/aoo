@@ -15,13 +15,13 @@ set(AOO_INSTALL_PKG_CONFIG_MODULE  	OFF	CACHE 	BOOL "" FORCE)
 set(AOO_INSTALL_CMAKE_CONFIG_MODULE OFF	CACHE 	BOOL "" FORCE)
 set(AOO_BUILD_SHARED_LIBRARY 		OFF	CACHE 	BOOL "" FORCE)
 
-set(AOO_LOG_LEVEL 			"Verbose"	CACHE	STRING "" FORCE)
+set(AOO_LOG_LEVEL 			"Info"	CACHE	STRING "" FORCE)
 
 
 
 add_executable(aoo_wasm 
 	src/aoo_js.cpp
-	src/aoo_js_receive.cpp
+	src/aoo_sink_js.cpp
 )
 target_include_directories(aoo_wasm PRIVATE "include")
 
@@ -29,20 +29,20 @@ target_link_libraries(aoo_wasm PRIVATE Aoo::aoo)
 
 set_target_properties(aoo_wasm PROPERTIES OUTPUT_NAME "aoo" SUFFIX ".mjs")
 
-set(WEB_TEMPLATE_DIR "${CMAKE_SOURCE_DIR}/web/js")
+set(WEB_PACKAGE_DIR "${CMAKE_SOURCE_DIR}/wasm/aoo/dist")
 
 
 add_custom_command(TARGET aoo_wasm POST_BUILD
-		COMMAND ${CMAKE_COMMAND} -E make_directory "${WEB_TEMPLATE_DIR}"
+		COMMAND ${CMAKE_COMMAND} -E make_directory "${WEB_PACKAGE_DIR}"
 		COMMAND ${CMAKE_COMMAND} -E copy
 			$<TARGET_FILE_DIR:aoo_wasm>/aoo.mjs
 			# $<TARGET_FILE_DIR:aoo_wasm>/aoo_wasm.wasm
-			${WEB_TEMPLATE_DIR}
+			${WEB_PACKAGE_DIR}
 		COMMAND ${CMAKE_COMMAND} -E copy
         	$<TARGET_FILE_DIR:aoo_wasm>/aoo.d.ts 
-			"${WEB_TEMPLATE_DIR}/aoo.d.mts"
+			"${WEB_PACKAGE_DIR}/aoo.d.mts"
 			
-			COMMENT "Copying aoo.mjs + types to ${WEB_TEMPLATE_DIR}"
+			COMMENT "Copying aoo.mjs + types to ${WEB_PACKAGE_DIR}"
 	)
 
 target_link_options(aoo_wasm PRIVATE

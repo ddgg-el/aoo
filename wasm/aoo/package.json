@@ -1,0 +1,19 @@
+{
+  "name": "aoo",
+  "version": "0.1.0",
+  "description": "WebAssembly bindings for the Audio Over OSC library.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/aoo.d.mts",
+      "import": "./dist/aoo.mjs"
+    }
+  },
+  "module": "./dist/aoo.mjs",
+  "types": "./dist/aoo.d.mts",
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "license": "MIT"
+}
