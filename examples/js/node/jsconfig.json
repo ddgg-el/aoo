@@ -1,0 +1,11 @@
+// {
+// 	"compilerOptions": {
+// 		"checkJs": true,
+// 		"module": "nodenext",
+// 		"moduleResolution": "nodenext",
+// 		"target": "esnext",
+// 		"strict": true,
+// 		"noImplicitAny": true
+// 	},
+// 	"include": ["**/*.mjs"]
+// }

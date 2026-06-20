@@ -1,6 +1,7 @@
 #pragma once
 
 #include "aoo.h"
+#include "aoo_common_js.hpp"
 #include "aoo_events.h"
 #include "aoo_source.hpp"
 #include "aoo_types.h"
@@ -80,6 +81,11 @@ public:
 		sendCb_ = cb;
 		return source_->send(&AooSourceJS::emitPacket, this);
 	}
+
+	int setEventHandler(emscripten::val cb) {
+		eventCb_ = cb;
+		return kAooOk;
+	}
 	
 private:
 	AooSource::Ptr source_;
@@ -89,13 +95,62 @@ private:
 	std::vector<std::vector<AooSample>> channels_;
 	std::vector<AooSample*> chanPtrs_;
 
+	emscripten::val eventCb_ = emscripten::val::undefined();
 	emscripten::val sendCb_ = emscripten::val::undefined();
 	
+	// emscripten::val endPointToVal(const AooEndpoint& ep) {
+	// 	char ipbuf[64];
+	// 	AooSize ipsize = sizeof(ipbuf);
+	// 	AooUInt16 port = 0;
+	// 	aoo_sockAddrToIpEndpoint(ep.address, ep.addrlen, ipbuf, &ipsize, &port, nullptr);
+	// 	auto o = emscripten::val::object();
+	// 	o.set("ip", std::string(ipbuf, ipsize));
+	// 	o.set("port", (int)port);
+	// 	o.set("id", ep.id);
+	// 	return o;
+	// }
+
 	void handle_event(const AooEvent& event) {
+		if(eventCb_.isUndefined()) return;
+		auto ev = emscripten::val::object();
 		switch (event.type) {
-		default:
+		case kAooEventSinkAdd:
+			ev.set("type", std::string("sinkAdd"));
+			ev.set("endpoint", endPointToVal(event.sinkAdd.endpoint));
+			break;
+		case kAooEventSinkRemove:
+			ev.set("type", std::string("sinkRemove"));
+			ev.set("endpoint", endPointToVal(event.sinkRemove.endpoint));
+			break;
+		case kAooEventSinkPing: {
+			const auto& p = event.sinkPing;
+			double rtt = aoo_ntpTimeToSeconds(p.t4 - p.t1) - aoo_ntpTimeToSeconds(p.t3 - p.t2);
+			ev.set("type", std::string("sinkPing"));
+			ev.set("endpoint", endPointToVal(p.endpoint));
+			ev.set("rtt", rtt);
+			ev.set("packetLoss", p.packetLoss);
 			break;
 		}
+		case kAooEventInvite:
+			ev.set("type", std::string("invite"));
+			ev.set("endpoint", endPointToVal(event.invite.endpoint));
+			ev.set("token", event.invite.token);
+			break;
+		case kAooEventUninvite:
+			ev.set("type", std::string("uninvite"));
+			ev.set("endpoint", endPointToVal(event.uninvite.endpoint));
+			ev.set("token", event.uninvite.token);
+			break;
+		case kAooEventFrameResend:
+			ev.set("type", std::string("frameResend"));
+			ev.set("endpoint", endPointToVal(event.frameResend.endpoint));
+			ev.set("count", event.frameResend.count);
+			break;
+		default:
+			ev.set("type", (int)event.type);
+			return;
+		}
+		eventCb_(ev);
 	}
 
 	static AooInt32 emitPacket(void* user, const AooByte* data, AooInt32 size, const void* addr, AooAddrSize addrlen, AooFlag) {

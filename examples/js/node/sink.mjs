@@ -1,6 +1,20 @@
 // @ts-check
 /**
- * @typedef {(bytes: Uint8Array, ip: string, port: number) => void} AooSendCallback 
+ * @typedef {(bytes: Uint8Array, ip: string, port: number) => void} AooSendCallback
+ * * @typedef {{ ip: string, port: number, id: number }} AooEndpoint
+ * * @typedef {(
+ *   | { type: "sourceAdd" | "sourceRemove", endpoint: AooEndpoint }
+ *   | { type: "sourcePing", endpoint: AooEndpoint, rtt: number }
+ *   | { type: "streamStart" | "streamStop", endpoint: AooEndpoint }
+ *   | { type: "streamState", state: string, sampleOffset: number }
+ *   | { type: "streamLatency", sourceLatency: number, sinkLatency: number, bufferLatency: number }
+ *   | { type: "formatChange", codec: string, channels: number, sampleRate: number, blockSize: number }
+ *   | { type: "invite" | "uninvite", endpoint: AooEndpoint, token: number }
+ *   | { type: "frameResend", endpoint: AooEndpoint, count: number }
+ *   | { type: "bufferUnderrun" | "bufferOverrun" | "streamTime" | "blockDrop" | "blockResend" | "blockXRun"}
+ *   | { type: "frameResend", endpoint: AooEndpoint, count: number }
+ * )} AooSourceEvent
+ * @typedef {(ev: AooSourceEvent) => void} AooEventHandler
  */ 
 
 import createModule from "aoo";
@@ -25,6 +39,48 @@ aoo.initialize();
 const sink = new aoo.AooSink(SINK_ID);
 sink.setup(CHANNELS, SR, BLOCK);
 sink.setLatency(0.05);
+
+sink.setEventHandler( /** @type {AooEventHandler} */ (ev) => {
+  switch (ev.type) {
+    case "sourceAdd":
+      console.log(`sourceAdd     -> ${ev.endpoint.ip}:${ev.endpoint.port} id=${ev.endpoint.id}`)
+      break
+    case "sourceRemove":
+      console.log(`sourceRemove  -> ${ev.endpoint.ip}:${ev.endpoint.port} id=${ev.endpoint.id}`)
+      break
+    case "streamStart":
+      console.log(`streamStart   -> ${ev.endpoint.ip}:${ev.endpoint.port}`)
+      break
+    case "streamStop":
+      console.log(`streamStop    -> ${ev.endpoint.ip}:${ev.endpoint.port}`)
+      break
+    case "streamState":
+      console.log(`streamState   -> ${ev.state} (offset ${ev.sampleOffset})`)
+      break
+    case "streamLatency":
+      console.log(`streamLatency -> source=${(ev.sourceLatency*1000).toFixed(1)}ms sink=${(ev.sinkLatency*1000).toFixed(1)}ms buffer=${(ev.bufferLatency*1000).toFixed(1)}ms`)
+      break
+    case "formatChange":
+      console.log(`formatChange  -> ${ev.codec} ${ev.channels}ch @ ${ev.sampleRate}Hz block=${ev.blockSize}`)
+      break
+    case "sourcePing":
+      console.log(`sourcePing    -> rtt=${(ev.rtt*1000).toFixed(2)}ms`)
+      break
+    case "bufferUnderrun":
+      console.log("bufferUnderrun!")
+      break
+    case "bufferOverrun":
+      console.log("bufferOverrun!")
+      break
+    case "streamTime":			
+    case "blockDrop":
+    case "blockResend":
+    case "blockXRun":
+      break
+    default:
+      console.log("default event:", ev.type)
+  }
+})
 
 // TODO: verify IPV6 protocol 
 // const sock = dgram.createSocket({ type: "udp6", ipv6Only: false });
@@ -52,7 +108,7 @@ const forward = (bytes, ip, port) => {
 }
 
 function renderAudioBlock() {
-  const audio = sink.processNow()
+  const audio = sink.process()
   sink.send(forward);
 
   const buf = Buffer.from(audio.buffer.slice(audio.byteOffset, audio.byteOffset + audio.byteLength))

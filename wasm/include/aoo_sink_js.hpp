@@ -1,6 +1,7 @@
 #pragma once
 
 #include "aoo.h"
+#include "aoo_common_js.hpp"
 #include "aoo_events.h"
 #include "aoo_sink.hpp"
 #include "aoo_types.h"
@@ -45,6 +46,11 @@ public:
 		return sink_->send(&AooSinkJS::emitPacket, this);
 	}
 
+	int setEventHandler(emscripten::val cb) {
+		eventCb_ = cb;
+		return kAooOk;
+	}
+
 	int inviteSource(std::string ip, int port, AooId id) {
 		AooSockAddrStorage addr;
 		AooAddrSize len = sizeof(addr);
@@ -65,19 +71,7 @@ public:
 		return sink_->handleMessage(bytes.data(), (AooInt32)bytes.size(), &addr, len);
 	}
 
-	int process(double timeSeconds) {
-		AooNtpTime t = aoo_ntpTimeFromSeconds(timeSeconds);
-		std::vector<std::vector<AooSample>>bufs(nchannels_,std::vector<AooSample>(blocksize_, 0.0f));
-		std::vector<AooSample*> ptrs;
-		ptrs.reserve(nchannels_);
-		for(auto& b:bufs) {
-			ptrs.push_back(b.data());
-		}
-
-		return sink_->process(ptrs.data(), blocksize_, t, nullptr, nullptr);
-	}
-
-	emscripten::val processNow() {
+	emscripten::val process() {
 		AooNtpTime t = aoo_getCurrentNtpTime();
 		sink_->process(chanPtrs_.data(), blocksize_, t, nullptr, nullptr);
 		for (int i = 0; i < blocksize_; ++i) {
@@ -85,13 +79,6 @@ public:
 				interleaved_[(size_t) i * nchannels_ + c] = channels_[c][i];
 			}
 		}
-		// std::vector<std::vector<AooSample>>bufs(nchannels_,std::vector<AooSample>(blocksize_, 0.0f));
-		// std::vector<AooSample*> ptrs;
-		// ptrs.reserve(nchannels_);
-		// for(auto& b:bufs) {
-		// 	ptrs.push_back(b.data());
-		// }
-
 		return emscripten::val(emscripten::typed_memory_view(interleaved_.size(), interleaved_.data()));
 	}
 
@@ -103,16 +90,77 @@ private:
 	std::vector<AooSample*> chanPtrs_;
 	std::vector<AooSample> interleaved_;
 
+	emscripten::val eventCb_ = emscripten::val::undefined();
 	emscripten::val sendCb_ = emscripten::val::undefined();
+
 	void handle_event(const AooEvent& event) {
+		if(eventCb_.isUndefined()) return;
+		auto ev = emscripten::val::object();
+
 		switch (event.type) {
-		case kAooEventStreamStart: {
-			std::cout << "start stream from source " << event.streamStart.endpoint.address << std::endl;
-        	break;
-		}
-		default:
+		case kAooEventSourceAdd:
+			ev.set("type", std::string("sourceAdd"));
+			ev.set("endpoint", endPointToVal(event.sourceAdd.endpoint));
+			break;
+		case kAooEventSourceRemove:
+			ev.set("type", std::string("sourceRemove"));
+			ev.set("endpoint", endPointToVal(event.sourceRemove.endpoint));
+			break;
+		case kAooEventSourcePing: {
+			const auto& p = event.sourcePing;
+			double rtt = aoo_ntpTimeToSeconds(p.t4 - p.t1) - aoo_ntpTimeToSeconds(p.t3 - p.t2);
+			ev.set("type", std::string("sourcePing"));
+			ev.set("endpoint", endPointToVal(p.endpoint));
+			ev.set("rtt", rtt);
 			break;
 		}
+		case kAooEventStreamStart:
+			ev.set("type", std::string("streamStart"));
+			ev.set("endpoint", endPointToVal(event.streamStart.endpoint));
+			break;
+		case kAooEventStreamStop:
+			ev.set("type", std::string("streamStop"));
+			ev.set("endpoint", endPointToVal(event.streamStop.endpoint));
+			break;
+		case kAooEventStreamState: {
+			const auto& s = event.streamState;
+			const char* name = s.state == kAooStreamStateActive ? "active" : s.state == kAooStreamStateBuffering ? "buffering" : "inactive";
+			ev.set("type", std::string("streamState"));
+			ev.set("endpoint", endPointToVal(s.endpoint));
+			ev.set("state", std::string(name));
+			ev.set("sampleOffset", s.sampleOffset);
+			break;
+		}
+		case kAooEventStreamLatency: {
+			const auto& l = event.streamLatency;
+			ev.set("type", std::string("streamLatency"));
+			ev.set("endpoint", endPointToVal(l.endpoint));
+			ev.set("sourceLatency", l.sourceLatency);
+			ev.set("sinkLatency", l.sinkLatency);
+			ev.set("bufferLatency", l.bufferLatency);
+			break;
+		}
+		case kAooEventFormatChange: {
+			const AooFormat* f = event.formatChange.format;
+			ev.set("type", std::string("formatChange"));
+			ev.set("endpoint", endPointToVal(event.formatChange.endpoint));
+			ev.set("codec", f->codecName);
+			ev.set("channels", f->numChannels);
+			ev.set("sampleRate", f->sampleRate);
+			ev.set("blockSize", f->blockSize);
+			break;
+		}
+		case kAooEventStreamTime:
+		case kAooEventBufferUnderrun:
+		case kAooEventBufferOverrun:
+		case kAooEventBlockDrop:
+		case kAooEventBlockResend:
+		case kAooEventBlockXRun:
+		default:
+			ev.set("type", (int)event.type);
+			return;
+		}
+		eventCb_(ev);
 	};
 
 	// forward each outgoing AOO packet to the JS `send` callback

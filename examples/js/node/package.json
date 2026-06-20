@@ -10,8 +10,8 @@
     "naudiodon2": "^2.5.0"
   },
   "scripts": {
-    "run:source": "node source.mjs",
-    "run:sink": "node sink.mjs"
+    "start:source": "node source.mjs",
+    "start:sink": "node sink.mjs"
   },
   "devDependencies": {
     "@types/node": "^26.0.0"

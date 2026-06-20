@@ -12,6 +12,6 @@ EMSCRIPTEN_BINDINGS(AooSink) {
 		.function("send", &AooSinkJS::send)
 		.function("inviteSource", &AooSinkJS::inviteSource)
 		.function("process", &AooSinkJS::process)
-		.function("processNow", &AooSinkJS::processNow);
+		.function("setEventHandler", &AooSinkJS::setEventHandler);
 
 }

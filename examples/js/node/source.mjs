@@ -1,6 +1,14 @@
 // @ts-check
 /**
  * @typedef {(bytes: Uint8Array, ip: string, port: number) => void} AooSendCallback
+ * @typedef {{ ip: string, port: number, id: number }} AooEndpoint
+ * @typedef {(
+ *   | { type: "sinkAdd" | "sinkRemove", endpoint: AooEndpoint }
+ *   | { type: "sinkPing", endpoint: AooEndpoint, rtt: number, packetLoss: number }
+ *   | { type: "invite" | "uninvite", endpoint: AooEndpoint, token: number }
+ *   | { type: "frameResend", endpoint: AooEndpoint, count: number }
+ * )} AooSourceEvent
+ * @typedef {(ev: AooSourceEvent) => void} AooEventHandler
  */
 
 import createModule from "aoo"
@@ -24,6 +32,24 @@ aoo.initialize()
 const source = new aoo.AooSource(SOURCE_ID)
 source.setup(CHANNELS, SR, BLOCK)
 source.setFormat()
+
+
+source.setEventHandler( /** @type {AooEventHandler} */ (ev) => {
+	switch (ev.type) {
+		case "sinkAdd":
+			console.log(`sinkAdd -> ${ev.endpoint.ip}:${ev.endpoint.port} id=${ev.endpoint.id}`)
+			break;
+		case "sinkRemove":
+			console.log(`sinkRemove -> ${ev.endpoint.ip}:${ev.endpoint.port} id=${ev.endpoint.id}`)
+			break;
+		case "sinkPing":
+			console.log(`sinkPing -> rtt=${(ev.rtt * 1000).toFixed(2)} ms loss=${(ev.packetLoss * 100).toFixed(1)}%`)
+			break;
+		default:
+			console.log("event:", ev.type)
+			break;
+	}
+})
 
 const sock = dgram.createSocket("udp4")
 
