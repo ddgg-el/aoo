@@ -1,3 +1,5 @@
+#pragma once
+
 #include "aoo.h"
 #include "aoo_events.h"
 #include "aoo_sink.hpp"

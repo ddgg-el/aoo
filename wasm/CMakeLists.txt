@@ -22,6 +22,7 @@ set(AOO_LOG_LEVEL 			"Info"	CACHE	STRING "" FORCE)
 add_executable(aoo_wasm 
 	src/aoo_js.cpp
 	src/aoo_sink_js.cpp
+	src/aoo_source_js.cpp
 )
 target_include_directories(aoo_wasm PRIVATE "include")
 
