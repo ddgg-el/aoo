@@ -64,7 +64,7 @@ const tickFunc = () => {
 	
 	while(used < TARGET && (CAPACITY - 1 - used) >= BLOCK * CHANNELS) {
 		try {
-			const audio = aooSink.processNow()
+			const audio = aooSink.process()
 			for (let i = 0; i < audio.length; i++) {
 				data[write] = audio[i]
 				write = (write + 1) % CAPACITY

@@ -89,8 +89,20 @@ const forward = (bytes, ip, port) => {
 	sock.send(Buffer.from(bytes), port, ip)
 }
 
+const enc = new TextEncoder()
+const BLOCKS_PER_SEC = Math.round(SR/BLOCK)
+let blockCount = 0
+let msgCount = 0
+
 pa.on('data', () => {
 	fillTone()
+
+	if(blockCount % BLOCKS_PER_SEC === 0) {
+		const payload = enc.encode(`CIAO #${msgCount++}!`)
+		source.addStreamMessage(aoo.kAooDataText, payload,0,0)
+	}
+	blockCount++
+
 	source.process(block)
 	source.send(forward)
 }) 

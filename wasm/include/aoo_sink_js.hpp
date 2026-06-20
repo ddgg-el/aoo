@@ -46,6 +46,11 @@ public:
 		return sink_->send(&AooSinkJS::emitPacket, this);
 	}
 
+	int setStreamMessageHandler(emscripten::val cb) {
+		msgCb_ = cb;
+		return kAooOk;
+	}
+
 	int setEventHandler(emscripten::val cb) {
 		eventCb_ = cb;
 		return kAooOk;
@@ -73,7 +78,7 @@ public:
 
 	emscripten::val process() {
 		AooNtpTime t = aoo_getCurrentNtpTime();
-		sink_->process(chanPtrs_.data(), blocksize_, t, nullptr, nullptr);
+		sink_->process(chanPtrs_.data(), blocksize_, t, &AooSinkJS::handleStreamMessage, this);
 		for (int i = 0; i < blocksize_; ++i) {
 			for (int c = 0; c < nchannels_; ++c) {
 				interleaved_[(size_t) i * nchannels_ + c] = channels_[c][i];
@@ -92,6 +97,7 @@ private:
 
 	emscripten::val eventCb_ = emscripten::val::undefined();
 	emscripten::val sendCb_ = emscripten::val::undefined();
+	emscripten::val msgCb_ = emscripten::val::undefined();
 
 	void handle_event(const AooEvent& event) {
 		if(eventCb_.isUndefined()) return;
@@ -173,5 +179,17 @@ private:
 		aoo_sockAddrToIpEndpoint(addr, addrlen, ipbuf, &ipsize, &port, nullptr);
 		self->sendCb_(emscripten::val(emscripten::typed_memory_view(size, data)), std::string(ipbuf, ipsize), (int)port);
 		return size;
+	}
+
+	static void handleStreamMessage(void* user, const AooStreamMessage* m, const AooEndpoint* source) {
+		auto* self = static_cast<AooSinkJS*>(user);
+		if(self->msgCb_.isUndefined()) return;
+		auto o = emscripten::val::object();
+		o.set("sampleOffset", m->sampleOffset);
+		o.set("channel", m->channel);
+		o.set("type", (int)m->type);
+		o.set("data", emscripten::val(emscripten::typed_memory_view(m->size, m->data)));
+		o.set("source", endPointToVal(*source));
+		self->msgCb_(o);
 	}
 };

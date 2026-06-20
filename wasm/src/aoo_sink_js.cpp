@@ -12,6 +12,7 @@ EMSCRIPTEN_BINDINGS(AooSink) {
 		.function("send", &AooSinkJS::send)
 		.function("inviteSource", &AooSinkJS::inviteSource)
 		.function("process", &AooSinkJS::process)
-		.function("setEventHandler", &AooSinkJS::setEventHandler);
+		.function("setEventHandler", &AooSinkJS::setEventHandler)
+		.function("setStreamMessageHandler", &AooSinkJS::setStreamMessageHandler);
 
 }

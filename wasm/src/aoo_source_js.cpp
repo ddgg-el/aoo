@@ -13,5 +13,6 @@ EMSCRIPTEN_BINDINGS(AooSource) {
 		.function("process", &AooSourceJS::process)
 		.function("handleMessage", &AooSourceJS::handleMessage)
 		.function("send", &AooSourceJS::send)
-		.function("setEventHandler", &AooSourceJS::setEventHandler);
+		.function("setEventHandler", &AooSourceJS::setEventHandler)
+		.function("addStreamMessage", &AooSourceJS::addStreamMessage);
 }

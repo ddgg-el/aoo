@@ -82,6 +82,17 @@ public:
 		return source_->send(&AooSourceJS::emitPacket, this);
 	}
 
+	int addStreamMessage(int type, emscripten::val data, int sampleOffset, int channel) {
+		std::vector<uint8_t> bytes = emscripten::convertJSArrayToNumberVector<uint8_t>(data);
+		AooStreamMessage msg;
+		msg.sampleOffset = sampleOffset;
+		msg.channel = channel;
+		msg.type = (AooDataType) type;
+		msg.size = (AooInt32) bytes.size();
+		msg.data = bytes.data();
+		return source_->addStreamMessage(msg);
+	}
+
 	int setEventHandler(emscripten::val cb) {
 		eventCb_ = cb;
 		return kAooOk;

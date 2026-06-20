@@ -15,6 +15,8 @@
  *   | { type: "frameResend", endpoint: AooEndpoint, count: number }
  * )} AooSourceEvent
  * @typedef {(ev: AooSourceEvent) => void} AooEventHandler
+ * @typedef {{channel:number, sampleOffset:number,type:number, source:{ip:string, port:number},data:ArrayBuffer}} AooSourceMessage
+ * @typedef {(msg:AooSourceMessage) => void} AooMessageHandler
  */ 
 
 import createModule from "aoo";
@@ -79,6 +81,16 @@ sink.setEventHandler( /** @type {AooEventHandler} */ (ev) => {
       break
     default:
       console.log("default event:", ev.type)
+  }
+})
+
+const dec = new TextDecoder()
+sink.setStreamMessageHandler( /** @type {AooMessageHandler} */ (msg) => {
+  const bytes = new Uint8Array(msg.data)
+  if(msg.type === aoo.kAooDataText) {
+    console.log(`streamMsg [text] #${msg.sampleOffset} ch${msg.channel} from ${msg.source.ip}:${msg.source.port}: "${dec.decode(bytes)}"`)
+  } else {
+    console.log(`streamMsg [type ${msg.type}] ${bytes.length} bytes`)
   }
 })
 

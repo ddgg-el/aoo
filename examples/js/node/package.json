@@ -1,7 +1,7 @@
 {
-  "name": "aoo-receive",
-  "version": "1.0.0",
-  "description": "a simple aoo receiver application for nodejs",
+  "name": "aoo-sink-source",
+  "version": "0.1.0",
+  "description": "simple sink and source applications for nodejs",
   "license": "MIT",
   "author": "Davide Gagliardi",
   "type": "module",
