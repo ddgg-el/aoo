@@ -23,6 +23,8 @@ set(AOO_INSTALL_PKG_CONFIG_MODULE  	OFF	CACHE 	BOOL "" FORCE)
 set(AOO_INSTALL_CMAKE_CONFIG_MODULE OFF	CACHE 	BOOL "" FORCE)
 set(AOO_BUILD_SHARED_LIBRARY 		OFF	CACHE 	BOOL "" FORCE)
 
+find_program(NPM_EXECUTABLE npm)
+
 add_executable(aoo_wasm 
 	src/aoo_js.cpp
 	src/aoo_sink_js.cpp
@@ -34,28 +36,40 @@ target_link_libraries(aoo_wasm PRIVATE Aoo::aoo)
 
 set_target_properties(aoo_wasm PROPERTIES OUTPUT_NAME "aoo" SUFFIX ".mjs")
 
-set(WEB_PACKAGE_DIR "${CMAKE_SOURCE_DIR}/wasm/aoo/dist")
+set(AOO_PACKAGE_DIR "${CMAKE_SOURCE_DIR}/wasm/aoo")
+set(WEB_PACKAGE_DIR "${AOO_PACKAGE_DIR}/dist")
 
 
 add_custom_command(TARGET aoo_wasm POST_BUILD
-		COMMAND ${CMAKE_COMMAND} -E make_directory "${WEB_PACKAGE_DIR}"
-		COMMAND ${CMAKE_COMMAND} -E copy
-			$<TARGET_FILE_DIR:aoo_wasm>/aoo.mjs
-			# $<TARGET_FILE_DIR:aoo_wasm>/aoo_wasm.wasm
-			${WEB_PACKAGE_DIR}
-		COMMAND ${CMAKE_COMMAND} -E copy
-        	$<TARGET_FILE_DIR:aoo_wasm>/aoo.d.ts 
-			"${WEB_PACKAGE_DIR}/aoo.d.mts"
-			
-			COMMENT "Copying aoo.mjs + types to ${WEB_PACKAGE_DIR}"
-	)
+	COMMAND ${CMAKE_COMMAND} -E make_directory "${WEB_PACKAGE_DIR}"
+	COMMAND ${CMAKE_COMMAND} -E copy
+		$<TARGET_FILE_DIR:aoo_wasm>/aoo.mjs
+		# $<TARGET_FILE_DIR:aoo_wasm>/aoo_wasm.wasm
+		${WEB_PACKAGE_DIR}
+	COMMAND ${CMAKE_COMMAND} -E copy
+		$<TARGET_FILE_DIR:aoo_wasm>/aoo.d.ts 
+		"${WEB_PACKAGE_DIR}/aoo.d.mts"
+		
+		COMMENT "Copying aoo.mjs + types to ${WEB_PACKAGE_DIR}"
+)
+
+if(NPM_EXECUTABLE)
+	add_custom_command(TARGET aoo_wasm POST_BUILD
+		COMMAND ${CMAKE_COMMAND} -E chdir "${AOO_PACKAGE_DIR}"
+		${NPM_EXECUTABLE} run build
+		COMMENT "Building Typescript wrapper (npm run build)"
+		VERBATIM
+) 
+else()
+	message(WARNING "npm not found — skipping TypeScript wrapper build; run 'npm run build' in wasm/aoo manually")
+endif()
 
 target_link_options(aoo_wasm PRIVATE
 	"--bind"
 	"-sMODULARIZE=1"
 	"-sEXPORT_ES6=1"
-	# If you later want to step through C++ line-by-line in the browser, 
-	# we drop SINGLE_FILE...
+	# If you want to step through C++ line-by-line in the browser, 
+	# drop SINGLE_FILE...
 	"-sSINGLE_FILE=1"
 	# and add -gsource-map
 	# "-gsource-map"

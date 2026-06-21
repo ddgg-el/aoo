@@ -137,6 +137,8 @@ export class AooSource {
 		this.#raw.setEventHandler(cb)
 	}
 
+	pollEvents(): number { return this.#raw.pollEvents() }
+
 	addStreamMessage(type:number, data:Uint8Array, sampleOffset = 0, channel = 0):number {
 		return this.#raw.addStreamMessage(type, data, sampleOffset, channel)
 	}
@@ -178,6 +180,8 @@ export class AooSink {
 	setEventHandler(cb: AooSinkEventHandler): void {
 		this.#raw.setEventHandler(cb)
 	}
+
+	pollEvents(): number { return this.#raw.pollEvents() }
 
 	setStreamMessageHandler(cb: AooMessageHandler): void {
 		// copy the transient heap view out before handing the message to the user

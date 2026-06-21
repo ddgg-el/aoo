@@ -96,14 +96,21 @@ pa.on('data', () => {
 	blockCount++
 
 	source.process(block)
-	source.send(forward)
 }) 
+
+const poll = setInterval(() => {
+	source.send(forward)
+	source.pollEvents()
+}, 5)
+source.send(forward)
 
 let exiting = false
 function shutdown(code = 0) {
 	if(exiting) process.exit(1)
 
 	exiting = true
+	clearInterval(poll)
+
 	try {pa.quit()} catch (e) {console.error("pa.quit error: ", e)}
 	try {sock.close()} catch (e) {console.error("sock close error: ", e)}
 	try {source.delete()} catch (e) {console.error("delete source error: ", e)}

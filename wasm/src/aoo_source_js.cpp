@@ -14,5 +14,6 @@ EMSCRIPTEN_BINDINGS(AooSource) {
 		.function("handleMessage", &AooSourceJS::handleMessage)
 		.function("send", &AooSourceJS::send)
 		.function("setEventHandler", &AooSourceJS::setEventHandler)
+		.function("pollEvents", &AooSourceJS::pollEvents)
 		.function("addStreamMessage", &AooSourceJS::addStreamMessage);
 }

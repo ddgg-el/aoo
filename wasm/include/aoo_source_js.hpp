@@ -19,7 +19,7 @@ public:
 	AooSourceJS(AooId id) : source_(AooSource::create(id)) {
 		source_->setEventHandler([](void *user, const AooEvent* event, AooThreadLevel) {
 			static_cast<AooSourceJS*>(user)->handle_event(*event);
-		}, this, kAooEventModeCallback);
+		}, this, kAooEventModePoll);
 	}
 
 	int setup(int channels, double sr, int blocksize) {
@@ -97,6 +97,8 @@ public:
 		eventCb_ = cb;
 		return kAooOk;
 	}
+
+	int pollEvents() { return source_->pollEvents(); }
 	
 private:
 	AooSource::Ptr source_;

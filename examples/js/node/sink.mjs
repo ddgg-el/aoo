@@ -102,7 +102,6 @@ const forward = (bytes, ip, port) => {
 
 function renderAudioBlock() {
   const audio = sink.process()
-  sink.send(forward);
 
   const buf = Buffer.from(audio.buffer.slice(audio.byteOffset, audio.byteOffset + audio.byteLength))
   if(pa.write(buf)) {
@@ -112,9 +111,15 @@ function renderAudioBlock() {
   }
 }
 
+const poll = setInterval(() => {
+  sink.send(forward)
+  sink.pollEvents()
+}) 
+
 renderAudioBlock()
 
 process.on("SIGINT", () => {
+  clearInterval(poll)
   pa.quit(); 
   sock.close(); 
   sink.delete()

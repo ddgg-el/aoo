@@ -13,6 +13,7 @@ EMSCRIPTEN_BINDINGS(AooSink) {
 		.function("inviteSource", &AooSinkJS::inviteSource)
 		.function("process", &AooSinkJS::process)
 		.function("setEventHandler", &AooSinkJS::setEventHandler)
+		.function("pollEvents", &AooSinkJS::pollEvents)
 		.function("setStreamMessageHandler", &AooSinkJS::setStreamMessageHandler);
 
 }

@@ -19,7 +19,7 @@ public:
 	AooSinkJS(AooId id) : sink_(AooSink::create(id)) {
 		sink_->setEventHandler([](void *user, const AooEvent* event, AooThreadLevel) {
 			static_cast<AooSinkJS*>(user)->handle_event(*event);
-		}, this, kAooEventModeCallback);
+		}, this, kAooEventModePoll);
 	}
 
 	int setup(int c, double sr, int n) { 
@@ -55,6 +55,8 @@ public:
 		eventCb_ = cb;
 		return kAooOk;
 	}
+
+	int pollEvents() { return sink_->pollEvents(); }
 
 	int inviteSource(std::string ip, int port, AooId id) {
 		AooSockAddrStorage addr;
