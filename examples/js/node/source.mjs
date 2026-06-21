@@ -1,24 +1,16 @@
 // @ts-check
 /**
- * @typedef {(bytes: Uint8Array, ip: string, port: number) => void} AooSendCallback
- * @typedef {{ ip: string, port: number, id: number }} AooEndpoint
- * @typedef {(
- *   | { type: "sinkAdd" | "sinkRemove", endpoint: AooEndpoint }
- *   | { type: "sinkPing", endpoint: AooEndpoint, rtt: number, packetLoss: number }
- *   | { type: "invite" | "uninvite", endpoint: AooEndpoint, token: number }
- *   | { type: "frameResend", endpoint: AooEndpoint, count: number }
- * )} AooSourceEvent
- * @typedef {(ev: AooSourceEvent) => void} AooEventHandler
+ * @import { AooSendCallback } from "aoo"
  */
 
-import createModule from "aoo"
+import * as aoo from "aoo"
 import dgram from "node:dgram"
 import portaudio from "naudiodon2"
 import { chooseAudioDevice } from "./utils.mjs"
 
 const SOURCE_ID = 1
-const SINK_HOST = "127.0.0.1"
-const SINK_PORT = 9001
+const SINK_HOST = "localhost"
+const SINK_PORT = 10001
 const SINK_ID = 1
 
 const CHANNELS = 1
@@ -26,15 +18,14 @@ const SR = 48000
 const BLOCK = 256
 const DEVICE = chooseAudioDevice("MacBook Pro Microphone")
 
-const aoo = await createModule()
-aoo.initialize()
+await aoo.initialize()
 
 const source = new aoo.AooSource(SOURCE_ID)
 source.setup(CHANNELS, SR, BLOCK)
 source.setFormat()
 
 
-source.setEventHandler( /** @type {AooEventHandler} */ (ev) => {
+source.setEventHandler( (ev) => {
 	switch (ev.type) {
 		case "sinkAdd":
 			console.log(`sinkAdd -> ${ev.endpoint.ip}:${ev.endpoint.port} id=${ev.endpoint.id}`)
@@ -51,7 +42,8 @@ source.setEventHandler( /** @type {AooEventHandler} */ (ev) => {
 	}
 })
 
-const sock = dgram.createSocket("udp4")
+// const sock = dgram.createSocket({ type: "udp6", ipv6Only: false });
+const sock = dgram.createSocket("udp4");
 
 sock.on("message", (msg, rinfo) => {
 	source.handleMessage(new Uint8Array(msg), rinfo.address, rinfo.port)
@@ -82,11 +74,11 @@ const fillTone = () => {
 	}
 }
 
-/**
- * @type {AooSendCallback}
- */
+/** @type {AooSendCallback} */
 const forward = (bytes, ip, port) => {
-	sock.send(Buffer.from(bytes), port, ip)
+	sock.send(Buffer.from(bytes), port, ip, (err) => {
+		if(err) console.error("send failed:", ip, err.message)
+	})
 }
 
 const enc = new TextEncoder()
@@ -99,7 +91,7 @@ pa.on('data', () => {
 
 	if(blockCount % BLOCKS_PER_SEC === 0) {
 		const payload = enc.encode(`CIAO #${msgCount++}!`)
-		source.addStreamMessage(aoo.kAooDataText, payload,0,0)
+		source.addStreamMessage(aoo.DataType.text, payload,0,0)
 	}
 	blockCount++
 
@@ -107,16 +99,27 @@ pa.on('data', () => {
 	source.send(forward)
 }) 
 
-process.on("SIGINT", () => {
-	pa.quit()
-	sock.close()
-	source.delete()
-	aoo.terminate()
-	process.exit(0)
-})
+let exiting = false
+function shutdown(code = 0) {
+	if(exiting) process.exit(1)
+
+	exiting = true
+	try {pa.quit()} catch (e) {console.error("pa.quit error: ", e)}
+	try {sock.close()} catch (e) {console.error("sock close error: ", e)}
+	try {source.delete()} catch (e) {console.error("delete source error: ", e)}
+	try {aoo.terminate()} catch (e) {console.error("error terminating aoo: ", e)}
+	process.exit(code)
+}
+
+process.on("SIGINT", () => shutdown(0) )
 
 sock.bind(()=> {
-	console.log("addSink",    source.addSink(SINK_HOST, SINK_PORT, SINK_ID));   // pretend a sink id 2
-	console.log("startStream",source.startStream());
-	pa.start()
+	try{
+		source.addSink(SINK_HOST, SINK_PORT, SINK_ID)
+		source.startStream()
+		pa.start()
+	} catch (err) {
+		console.error("setup failed:", err instanceof Error ? err.message : err)
+		shutdown(1)
+	}
 })
