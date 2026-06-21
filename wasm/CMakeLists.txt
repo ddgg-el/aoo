@@ -4,7 +4,15 @@ project(aoo_wasm)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-set(CMAKE_BUILD_TYPE "Debug")
+# set(CMAKE_BUILD_TYPE "Debug")
+
+if(NOT CMAKE_BUILD_TYPE)
+	set(CMAKE_BUILD_TYPE "Release")
+endif()
+
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+	set(AOO_LOG_LEVEL "Info" CACHE STRING "" FORCE)
+endif()
 
 set(AOO_USE_OPUS                   	ON 	CACHE 	BOOL "" FORCE)
 set(AOO_NET                        	OFF	CACHE 	BOOL "" FORCE)
@@ -14,10 +22,6 @@ set(AOO_INSTALL_LIBRARY            	OFF	CACHE 	BOOL "" FORCE)
 set(AOO_INSTALL_PKG_CONFIG_MODULE  	OFF	CACHE 	BOOL "" FORCE)
 set(AOO_INSTALL_CMAKE_CONFIG_MODULE OFF	CACHE 	BOOL "" FORCE)
 set(AOO_BUILD_SHARED_LIBRARY 		OFF	CACHE 	BOOL "" FORCE)
-
-set(AOO_LOG_LEVEL 			"Info"	CACHE	STRING "" FORCE)
-
-
 
 add_executable(aoo_wasm 
 	src/aoo_js.cpp
@@ -59,11 +63,21 @@ target_link_options(aoo_wasm PRIVATE
 	"-sEXPORT_NAME=createModule"
 	"-sALLOW_MEMORY_GROWTH=1"          # AOO allocates an RT memory pool on init
 	"SHELL:--emit-tsd aoo.d.ts"
-	"-g"
-	"-sASSERTIONS=2"
-	"-sSAFE_HEAP=1"					# catches OOB / misaligned heap access
-	"-sSTACK_OVERFLOW_CHECK=2"      # detect stack smashing
-    "-sEXCEPTION_STACK_TRACES=1"    # C++ stack trace on uncaught exceptions
 	"-sNO_DISABLE_EXCEPTION_CATCHING"
 )
+
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+	target_compile_options(aoo_wasm PRIVATE "-O3")
+	target_link_options(aoo_wasm PRIVATE "-O3")
+else()
+	target_compile_options(aoo_wasm PRIVATE "-O0")
+	target_link_options(aoo_wasm PRIVATE
+		"-g"
+		"-sASSERTIONS=2"
+		"-sSAFE_HEAP=1"					# catches OOB / misaligned heap access
+		"-sSTACK_OVERFLOW_CHECK=2"      # detect stack smashing
+    	"-sEXCEPTION_STACK_TRACES=1"    # C++ stack trace on uncaught exceptions
+
+	)
+endif()
 

@@ -9,8 +9,8 @@ import portaudio from "naudiodon2"
 import { chooseAudioDevice } from "./utils.mjs"
 
 const SOURCE_ID = 1
-const SINK_HOST = "localhost"
-const SINK_PORT = 10001
+const SINK_HOST = "127.0.0.1"
+const SINK_PORT = 9001
 const SINK_ID = 1
 
 const CHANNELS = 1
