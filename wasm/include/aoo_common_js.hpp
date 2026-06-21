@@ -15,3 +15,5 @@ inline emscripten::val endPointToVal(const AooEndpoint& ep) {
 	o.set("id", ep.id);
 	return o;
 }
+
+static constexpr AooSocketFlags kAooSocketAnyFamily = (AooSocketFlags)(kAooSocketIPv4 | kAooSocketIPv6);

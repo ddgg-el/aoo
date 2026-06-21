@@ -45,7 +45,7 @@ public:
 		AooSockAddrStorage addr;
 		AooAddrSize len = sizeof(addr);
 
-		if(aoo_ipEndpointToSockAddr(ip.c_str(), (AooUInt16) port, kAooSocketIPv4, &addr, &len) != kAooOk) {
+		if(aoo_ipEndpointToSockAddr(ip.c_str(), (AooUInt16) port, kAooSocketAnyFamily, &addr, &len) != kAooOk) {
 			return kAooErrorBadArgument;
 		}
 		AooEndpoint ep { &addr, len, id};

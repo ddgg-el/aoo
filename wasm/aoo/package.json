@@ -5,15 +5,23 @@
   "type": "module",
   "exports": {
     ".": {
-      "types": "./dist/aoo.d.mts",
-      "import": "./dist/aoo.mjs"
+      "types": "./index.d.ts",
+      "import": "./index.js"
     }
   },
-  "module": "./dist/aoo.mjs",
-  "types": "./dist/aoo.d.mts",
+  "module": "./index.js",
+  "types": "./index.d.ts",
   "files": [
+    "index.js",
+    "index.d.ts",
     "dist"
   ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
   "sideEffects": false,
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^6.0.3"
+  }
 }

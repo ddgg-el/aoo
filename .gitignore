@@ -21,3 +21,6 @@ node_modules/
 build**
 install/**
 dist
+
+wasm/aoo/*.d.ts
+wasm/aoo/*.js

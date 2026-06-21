@@ -60,7 +60,7 @@ public:
 		AooSockAddrStorage addr;
 		AooAddrSize len = sizeof(addr);
 		// TODO: check how to use IPV6
-		if(aoo_ipEndpointToSockAddr(ip.c_str(), (AooUInt16) port, kAooSocketIPv4, &addr, &len) != kAooOk) return kAooErrorBadArgument;
+		if(aoo_ipEndpointToSockAddr(ip.c_str(), (AooUInt16) port, kAooSocketAnyFamily, &addr, &len) != kAooOk) return kAooErrorBadArgument;
 
 		AooEndpoint ep { &addr, len, id};
 		return sink_->inviteSource(ep, nullptr);
@@ -71,7 +71,7 @@ public:
 
 		AooSockAddrStorage addr;
 		AooAddrSize len = sizeof(addr);
-		if(aoo_ipEndpointToSockAddr(ip.c_str(), (AooUInt16) port, kAooSocketIPv4, &addr, &len) != kAooOk) return kAooErrorBadArgument;
+		if(aoo_ipEndpointToSockAddr(ip.c_str(), (AooUInt16) port, kAooSocketAnyFamily, &addr, &len) != kAooOk) return kAooErrorBadArgument;
 
 		return sink_->handleMessage(bytes.data(), (AooInt32)bytes.size(), &addr, len);
 	}
