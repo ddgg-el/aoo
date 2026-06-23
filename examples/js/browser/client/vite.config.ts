@@ -1,3 +1,4 @@
+import { resolve } from "node:path"
 import { defineConfig } from "vite"
 
 const crossOriginIsolation = {
@@ -7,6 +8,18 @@ const crossOriginIsolation = {
 
 export default defineConfig({
 	build: { target: "esnext" },
-	server: { headers: crossOriginIsolation },
-	preview: { headers: crossOriginIsolation } 
+	server: { 
+		headers: crossOriginIsolation,
+		fs: {
+			allow: [".", "../../../../wasm/aoo"]
+		}
+	},
+	// resolve: {
+	// 	alias: {
+	// 	'@': resolve(__dirname, 'src'), // Optional alias for cleaner imports
+	// 	}
+	// },
+	preview: { headers: crossOriginIsolation },
+	optimizeDeps: { exclude: ["aoo"] },
+	assetsInclude: ["**/*.wasm"],
 })

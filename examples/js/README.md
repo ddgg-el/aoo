@@ -60,17 +60,13 @@ cd node
 npm install
 
 # terminal 1 — the receiver (binds UDP 9001, plays audio)
-node sink.mjs
+npm run run:sink
 
 # terminal 2 — the source (generates a tone, sends to 127.0.0.1:9001)
-node source.mjs
+npm run run:source
 ```
 
 You should hear the tone once the sink's ~50 ms latency buffer fills.
-
-> **Note:** `package.json` is meant to expose `run:sink` / `run:source`, but the
-> key is misspelled `"script"` — it must be `"scripts"`. Fix that and you can use
-> `npm run run:sink` / `npm run run:source` instead of `node …`.
 
 - UDP port **9001** · 2 channels · 48000 Hz.
 

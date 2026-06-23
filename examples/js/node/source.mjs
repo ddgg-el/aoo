@@ -3,7 +3,7 @@
  * @import { AooSendCallback } from "aoo"
  */
 
-import * as aoo from "aoo"
+import { aoo_initialize, aoo_terminate, AooDataType, AooSource} from "aoo"
 import dgram from "node:dgram"
 import portaudio from "naudiodon2"
 import { chooseAudioDevice } from "./utils.mjs"
@@ -18,9 +18,9 @@ const SR = 48000
 const BLOCK = 256
 const DEVICE = chooseAudioDevice("MacBook Pro Microphone")
 
-await aoo.initialize()
+await aoo_initialize()
 
-const source = new aoo.AooSource(SOURCE_ID)
+const source = new AooSource(SOURCE_ID)
 source.setup(CHANNELS, SR, BLOCK)
 source.setFormat()
 
@@ -91,7 +91,7 @@ pa.on('data', () => {
 
 	if(blockCount % BLOCKS_PER_SEC === 0) {
 		const payload = enc.encode(`CIAO #${msgCount++}!`)
-		source.addStreamMessage(aoo.DataType.text, payload,0,0)
+		source.addStreamMessage(AooDataType.text, payload,0,0)
 	}
 	blockCount++
 
@@ -114,7 +114,7 @@ function shutdown(code = 0) {
 	try {pa.quit()} catch (e) {console.error("pa.quit error: ", e)}
 	try {sock.close()} catch (e) {console.error("sock close error: ", e)}
 	try {source.delete()} catch (e) {console.error("delete source error: ", e)}
-	try {aoo.terminate()} catch (e) {console.error("error terminating aoo: ", e)}
+	try {aoo_terminate()} catch (e) {console.error("error terminating aoo: ", e)}
 	process.exit(code)
 }
 

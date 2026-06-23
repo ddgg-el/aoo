@@ -1,50 +1,30 @@
-import createModule from "aoo"
+import { aoo_initialize, AooSink } from "aoo"
+import "./style.css"
 
-const CHANNELS = 2
-const BLOCK = 256
-const CAPACITY = BLOCK * CHANNELS * 4 // ring capacity 4 blocks
-const TARGET = BLOCK * CHANNELS * 4
+const CHANNELS = 1
+// const BLOCK = 256
+// const CAPACITY = BLOCK * CHANNELS * 4 // ring capacity 4 blocks
+// const TARGET = BLOCK * CHANNELS * 4
 
 const WS_URL = "ws://localhost:8081"
-const PD_PORT = 9000 
-/**
- * Ring Buffers
- */
-const dataSab = new SharedArrayBuffer(CAPACITY * 4)
-const ctrlSab = new SharedArrayBuffer(8)
-const data = new Float32Array(dataSab)
-const ctrl = new Int32Array(ctrlSab)
+const SOURCE_HOST = "127.0.0.1"
+const SOURCE_PORT = 9001
 
-/**
- * Audio Setup
- */
-const dac = new AudioContext()
-await dac.audioWorklet.addModule("/aoo-receive.worklet.js")
-const node = new AudioWorkletNode(dac, "aoo-receive", {
-	outputChannelCount: [CHANNELS],
-	processorOptions: {
-		dataSab, ctrlSab, channels: CHANNELS, capacity: CAPACITY
-	}
+await aoo_initialize()
+
+const aooSink = new AooSink(1)
+aooSink.setLatency(0.05)
+
+const ctx = new AudioContext()
+const sinkNode = await aooSink.createOutputNode(ctx, CHANNELS)
+const gain = new GainNode(ctx, { gain: 0.1 })
+sinkNode.connect(gain).connect(ctx.destination)
+
+const dec = new TextDecoder()
+aooSink.setEventHandler((ev) => console.log(ev.type))
+aooSink.setStreamMessageHandler((msg) => {
+	console.log(`msg "${dec.decode(msg.data)}" @${msg.time?.toFixed(3) ?? "?"}s `)
 })
-
-node.connect(dac.destination)
-// await dac.resume()
-
-/**
- * AOO Setup
- */
-const aoo = await createModule()
-
-const log = [`AOO version -> ${aoo.versionString()}`]
-log.push("\nInitializing AOO...")
-log.push(`AOO -> ${aoo.initialize() === 0 ? "Initialized" : "Error"}`)
-
-// TODO: intercept debug messages from AOO
-// aoo.setLogHandler((level, msg) => { /* show it */ })
-
-const aooSink = new aoo.AooSink(1)
-log.push("\nInitializing aooSink...")
-log.push(`aooSink -> ${aooSink.setup(CHANNELS, dac.sampleRate, BLOCK) === 0 ? "Initialized" : "Error Initializing aooSink"}`)
 
 /**
  * WebSocket setup
@@ -53,62 +33,41 @@ const ws = new WebSocket(WS_URL)
 ws.binaryType = "arraybuffer"
 ws.onopen = () => console.log("WS connected")
 ws.onmessage = (ev) => {
-	aooSink.handleMessage(new Uint8Array(ev.data as ArrayBuffer), "127.0.0.1", PD_PORT)
+	aooSink.handleMessage(new Uint8Array(ev.data as ArrayBuffer), SOURCE_HOST, SOURCE_PORT)
 }
 
+/**
+ * Audio Setup
+ */
+// const dac = new AudioContext()
+// await dac.audioWorklet.addModule("/aoo-receive.worklet.js")
+// const node = new AudioWorkletNode(dac, "aoo-receive", {
+// 	outputChannelCount: [CHANNELS],
+// 	processorOptions: {
+// 		dataSab, ctrlSab, channels: CHANNELS, capacity: CAPACITY
+// 	}
+// })
+
+// node.connect(dac.destination)
+// // await dac.resume()
 
 const tickFunc = () => {
-	const read = Atomics.load(ctrl, 0)
-	let write = Atomics.load(ctrl, 1)
-	let used = (write - read + CAPACITY) % CAPACITY
-	
-	while(used < TARGET && (CAPACITY - 1 - used) >= BLOCK * CHANNELS) {
-		try {
-			const audio = aooSink.process()
-			for (let i = 0; i < audio.length; i++) {
-				data[write] = audio[i]
-				write = (write + 1) % CAPACITY
-			}
-			used += BLOCK * CHANNELS
-			aooSink.send((bytes:Uint8Array) => {
-				if(ws.readyState === 1) {
-					ws.send(bytes.slice())
-				}
-			})
-			Atomics.store(ctrl, 1, write)
-		} catch (error) {
-			throw error;
-			
-		}
-	}
+	aooSink.send((bytes:Uint8Array) => {
+		if(ws.readyState === 1) ws.send(bytes.slice())
+	})
+	aooSink.pollEvents()
+	aooSink.pollStreamMessages()
 }
-let time:ReturnType<typeof setInterval>|null = null
 
 const btn = document.getElementById("start-audio") as HTMLButtonElement
+let timer:ReturnType<typeof setInterval>|null = null
 
 btn.onclick = async (ev) => {
-	if(dac.state === "suspended") {
-		try {
-			await dac.resume()
-			time = setInterval(tickFunc, 5)
-			const b = ev.target as HTMLButtonElement
-			b.innerText = "Stop Audio"
-			// this.innerText("Stop Audio")
-		} catch (error) {
-			if(time) clearInterval(time)
-		}
-	} else {
-		await dac.suspend()
-		if(time) clearInterval(time)
-		const b = ev.target as HTMLButtonElement
-		b.innerText = "Start Audio"	
-		// aooSink.delete()
-		// console.log(aooSink)
-		// log.push("\nTerminating AOO")
-		// log.push(`AOO -> ${aoo.terminate() == undefined ? "Terminated" : "Could not terminate AOO" }`)
-	}
+	await ctx.resume()	
+	timer ??= setInterval(tickFunc, 5)
+	btn.innerText = "Stop Audio"
 }
-document.querySelector("#out")!.textContent = log.join("\n");
+
 // aooSink.inviteSource("127.0.0.1", 9000, 1);
 // let n = 0
 

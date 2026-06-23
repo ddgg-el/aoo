@@ -5,15 +5,27 @@
   "type": "module",
   "exports": {
     ".": {
-      "types": "./index.d.ts",
-      "import": "./index.js"
+      "node": {
+        "types": "./index.node.d.ts",
+        "default": "./index.node.js"
+      },
+      "browser": {
+        "types": "./index.browser.d.ts",
+        "default": "./index.browser.js"
+      },
+      "default": {
+        "types": "./index.browser.d.ts",
+        "default": "./index.browser.js"
+      }
     }
   },
-  "module": "./index.js",
-  "types": "./index.d.ts",
+  "main": "./index.node.js",
+  "module": "./index.browser.js",
+  "types": "./index.node.d.ts",
   "files": [
-    "index.js",
-    "index.d.ts",
+    "core.js", "core.d.ts",
+    "index.node.js", "index.node.d.ts",
+    "index.browser.js", "index.browser.d.ts",
     "dist"
   ],
   "scripts": {

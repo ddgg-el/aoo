@@ -38,5 +38,5 @@
     "strict": true,
     "skipLibCheck": true,
   },
-  "include": ["index.ts"]
+  "include": ["core.ts", "index.node.ts", "index.browser.ts"]
 }

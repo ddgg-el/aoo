@@ -14,6 +14,10 @@ EMSCRIPTEN_BINDINGS(AooSink) {
 		.function("process", &AooSinkJS::process)
 		.function("setEventHandler", &AooSinkJS::setEventHandler)
 		.function("pollEvents", &AooSinkJS::pollEvents)
+		.function("pollStreamMessages", &AooSinkJS::pollStreamMessages)
+		.function("playbackSample", &AooSinkJS::playbackSample)
+		.function("playbackTime",   &AooSinkJS::playbackTime)
+		.function("streamMessagesDropped", &AooSinkJS::streamMessagesDropped)
 		.function("setStreamMessageHandler", &AooSinkJS::setStreamMessageHandler);
 
 }

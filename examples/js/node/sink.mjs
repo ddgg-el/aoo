@@ -3,7 +3,7 @@
  * @import { AooSendCallback } from "aoo"
  */ 
 
-import * as aoo from "aoo";
+import { AooSink, aoo_initialize, AooDataType, aoo_terminate } from "aoo";
 import dgram from "node:dgram";
 import portAudio from "naudiodon2"
 import { chooseAudioDevice } from "./utils.mjs";
@@ -16,12 +16,9 @@ const SR = 48000
 const BLOCK = 256
 const DEVICE = chooseAudioDevice("MacBook Pro Speakers")
 
-await aoo.initialize();
+await aoo_initialize();
 
-// TODO: aoo.setLogHandler?.((lvl, msg) => console.log("[aoo]", msg));
-// console.log(aoo)
-
-const sink = new aoo.AooSink(SINK_ID);
+const sink = new AooSink(SINK_ID);
 sink.setup(CHANNELS, SR, BLOCK);
 sink.setLatency(0.05);
 
@@ -70,7 +67,7 @@ sink.setEventHandler((ev) => {
 const dec = new TextDecoder()
 sink.setStreamMessageHandler((msg) => {
   const bytes = new Uint8Array(msg.data)
-  if(msg.type === aoo.DataType.text) {
+  if(msg.type === AooDataType.text) {
     console.log(`streamMsg [text] #${msg.sampleOffset} ch${msg.channel} from ${msg.source.ip}:${msg.source.port}: "${dec.decode(bytes)}"`)
   } else {
     console.log(`streamMsg [type ${msg.type}] ${bytes.length} bytes`)
@@ -123,7 +120,7 @@ process.on("SIGINT", () => {
   pa.quit(); 
   sock.close(); 
   sink.delete()
-  aoo.terminate(); 
+  aoo_terminate(); 
   process.exit(0)
 })
 

@@ -2,7 +2,23 @@
 
 #include "aoo.h"
 #include "aoo_types.h"
+#include <cstdint>
 #include <emscripten/val.h>
+
+static constexpr uint32_t kMsgRingSize = 64;
+static constexpr int kMsgMaxBytes = 512;
+
+struct MsgSlot {
+	int32_t sampleOffset;
+	int32_t channel;
+	int32_t type;
+	int32_t size;
+	uint8_t data[kMsgMaxBytes];
+	int64_t dueSample;
+	AooSockAddrStorage addr;
+	AooAddrSize addrlen;
+	AooId id;
+};
 
 inline emscripten::val endPointToVal(const AooEndpoint& ep) {
 	char ipbuf[64];

@@ -154,9 +154,8 @@ target_include_directories(aoo PUBLIC
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/aoo>)
 
-# QUICK FIX TO AVOID MULTITHREADING IN THE BROWSER
-# TODO: check multithreading capabilities
-if (LINUX AND NOT EMSCRIPTEN)
+# Allow multithreading in browser but not in Node
+if ((LINUX AND NOT EMSCRIPTEN) OR (EMSCRIPTEN AND AOO_WASM_THREADED))
     target_compile_options(aoo_common INTERFACE -pthread)
     target_link_libraries(aoo PRIVATE -pthread)
 endif()

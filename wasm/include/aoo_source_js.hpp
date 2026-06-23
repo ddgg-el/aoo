@@ -34,7 +34,7 @@ public:
 		
 		return source_->setup(channels, sr, blocksize, 0);
 	}
-
+	// TODO: implement OPUS and resampling!
 	int setFormat() {
 		AooFormatPcm fmt;
 		AooFormatPcm_init(&fmt, nchannels_, samplerate_, blocksize_, kAooPcmFloat32);
