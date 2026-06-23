@@ -8,6 +8,8 @@
 static constexpr uint32_t kMsgRingSize = 64;
 static constexpr int kMsgMaxBytes = 512;
 
+static constexpr AooSocketFlags kAooSocketAnyFamily = (AooSocketFlags)(kAooSocketIPv4 | kAooSocketIPv6);
+
 struct MsgSlot {
 	int32_t sampleOffset;
 	int32_t channel;
@@ -32,4 +34,7 @@ inline emscripten::val endPointToVal(const AooEndpoint& ep) {
 	return o;
 }
 
-static constexpr AooSocketFlags kAooSocketAnyFamily = (AooSocketFlags)(kAooSocketIPv4 | kAooSocketIPv6);
+inline bool ipToSockAddr(const std::string& ip, int port, AooSockAddrStorage& addr, AooAddrSize& len) {
+	len = sizeof(addr);
+	return aoo_ipEndpointToSockAddr(ip.c_str(), (AooUInt16)port, kAooSocketAnyFamily, &addr, &len) == kAooOk;
+}

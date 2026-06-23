@@ -11,7 +11,8 @@
   },
   "scripts": {
     "start:source": "node source.mjs",
-    "start:sink": "node sink.mjs"
+    "start:sink": "node sink.mjs",
+    "test": "node --test"
   },
   "devDependencies": {
     "@types/node": "^26.0.0"

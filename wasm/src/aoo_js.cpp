@@ -28,4 +28,8 @@ EMSCRIPTEN_BINDINGS(aoo_core) {
 	emscripten::constant("kAooDataOSC", (int)kAooDataOSC);
 	emscripten::constant("kAooDataMIDI", (int)kAooDataMIDI);
 	emscripten::constant("kAooDataJSON", (int)kAooDataJSON);
+
+	emscripten::constant("kAooResampleHold",   (int) kAooResampleHold);
+	emscripten::constant("kAooResampleLinear", (int) kAooResampleLinear);
+	emscripten::constant("kAooResampleCubic",  (int) kAooResampleCubic);
 }

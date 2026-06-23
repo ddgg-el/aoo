@@ -23,17 +23,22 @@
   "module": "./index.browser.js",
   "types": "./index.node.d.ts",
   "files": [
-    "core.js", "core.d.ts",
-    "index.node.js", "index.node.d.ts",
-    "index.browser.js", "index.browser.d.ts",
+    "core.js",
+    "core.d.ts",
+    "index.node.js",
+    "index.node.d.ts",
+    "index.browser.js",
+    "index.browser.d.ts",
     "dist"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json"
+    "build": "tsc -p tsconfig.json",
+    "test": "node --test"
   },
   "sideEffects": false,
   "license": "MIT",
   "devDependencies": {
+    "@types/node": "^26.0.0",
     "typescript": "^6.0.3"
   }
 }

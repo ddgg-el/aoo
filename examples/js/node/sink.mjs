@@ -54,11 +54,10 @@ sink.setEventHandler((ev) => {
     case "bufferOverrun":
       console.log("bufferOverrun!")
       break
-    case "streamTime":			
+    case "streamTime":
     case "blockDrop":
     case "blockResend":
     case "blockXRun":
-      break
     default:
       console.log("default event:", ev.type)
   }
@@ -79,6 +78,8 @@ const sock = dgram.createSocket({ type: "udp6", ipv6Only: false });
 sock.on("message", (msg, rinfo) => {
   sink.handleMessage(new Uint8Array(msg), rinfo.address, rinfo.port);
 });
+
+
 
 const pa = portAudio.AudioIO({
   outOptions: {

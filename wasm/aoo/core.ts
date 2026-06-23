@@ -26,19 +26,18 @@ export type AooSourceEvent =
 	| { type: "invite" | "uninvite", endpoint: AooEndpoint, token: number }
  	| { type: "frameResend", endpoint: AooEndpoint, count: number }
 
-export type AooSinkEvent = 
+export type AooSinkEvent =
 	| { type: "sourceAdd" | "sourceRemove", endpoint: AooEndpoint }
- 	| { type: "sourcePing", endpoint: AooEndpoint, rtt: number }
- 	| { type: "streamStart" | "streamStop", endpoint: AooEndpoint }
- 	| { type: "streamState", endpoint: AooEndpoint, state: AooStreamState, sampleOffset: number }
- 	| { type: "streamLatency", endpoint: AooEndpoint, sourceLatency: number, sinkLatency: number, bufferLatency: number }
- 	| { type: "formatChange", endpoint: AooEndpoint, codec: string, channels: number, sampleRate: number, blockSize: number }
- 	| { type: "invite" | "uninvite", endpoint: AooEndpoint, token: number }
- 	| { type: "frameResend", endpoint: AooEndpoint, count: number }
- 	| { type: "bufferUnderrun" | "bufferOverrun" | "streamTime" | "blockDrop" | "blockResend" | "blockXRun"}
- 	| { type: "frameResend", endpoint: AooEndpoint, count: number }
+	| { type: "sourcePing", endpoint: AooEndpoint, rtt: number }
+	| { type: "streamStart" | "streamStop", endpoint: AooEndpoint }
+	| { type: "streamState", endpoint: AooEndpoint, state: AooStreamState, sampleOffset: number }
+	| { type: "streamLatency", endpoint: AooEndpoint, sourceLatency: number, sinkLatency: number, bufferLatency: number }
+	| { type: "formatChange", endpoint: AooEndpoint, codec: string, channels: number, sampleRate: number, blockSize: number }
+	| { type: "bufferUnderrun" | "bufferOverrun", endpoint: AooEndpoint }
+	| { type: "blockDrop" | "blockResend" | "blockXRun", endpoint: AooEndpoint, count: number }
+	| { type: "streamTime", endpoint: AooEndpoint, sourceTime: number, sinkTime: number, sampleOffset: number }
 
-export type AooSourceEventHandler = (ev: AooSourceEvent) => void
+	export type AooSourceEventHandler = (ev: AooSourceEvent) => void
 export type AooSinkEventHandler = (ev: AooSinkEvent) => void
 
 /* --------------------------- stream messages ---------------------------- */
@@ -77,7 +76,7 @@ export function aoo_version(): string { return `AOO version: ${getCore().version
 
 export function aoo_strerror(code: number): string { return getCore().strerror(code) }
 
-function check(code:number, op:string, obj:AooSinkBase|AooSource|null = null): void { 
+function check(code:number, op:string, obj:AooStreamEndpoint<any>|null = null): void { 
 	if(code !== 0) {
 		let origin = "aoo"
 		if(obj) {
@@ -92,6 +91,18 @@ export function aoo_terminate(): void {
 	core = null
 }
 
+export interface AooResampleMethods {
+	hold:number
+	linear:number
+	cubic:number
+}
+
+export const AooResampleMethod: AooResampleMethods = {
+	get hold() {return getCore().kAooResampleHold},
+	get linear() {return getCore().kAooResampleLinear},
+	get cubic() {return getCore().kAooResampleCubic}
+}
+
 export const AooDataType: AooDataTypes = {
 	get raw()  { return getCore().kAooDataRaw },
 	get text() { return getCore().kAooDataText },
@@ -100,19 +111,106 @@ export const AooDataType: AooDataTypes = {
 	get json() { return getCore().kAooDataJSON },
 }
 
-export class AooSource {
-	protected readonly raw: any
+/* --------------------------- AooStreamEndpoint -------------------------- */
+/* Shared base for AooSource and AooSink (the audio-streaming objects).
+   Generic over the event type E so setEventHandler stays typed.   */
 
-	constructor(id:number) {
-		this.raw = new (getCore().AooSource)(id)
+export abstract class AooStreamEndpoint<E> {
+	protected readonly raw:any
+
+	constructor(raw:any) {
+		this.raw = raw
 	}
 
 	setup(channels:number, sampleRate:number, blockSize:number): void {
 		check(this.raw.setup(channels, sampleRate, blockSize), "setup", this)
 	}
 
+	send(cb:AooSendCallback): number {
+		return this.raw.send(cb)
+	}
+
+	handleMessage(bytes:Uint8Array, ip:string, port:number): number {
+		return this.raw.handleMessage(bytes, ip, port)
+	}
+
+	reset(): void { 
+		check(this.raw.reset(), "reset", this) 
+	}
+
+	setId(id: number): void { 
+		check(this.raw.setId(id), "setId", this) 
+	}
+
+	setPacketSize(bytes: number): void { 
+		check(this.raw.setPacketSize(bytes), "setPacketSize", this) 
+	}
+
+	setPingInterval(seconds: number): void { 
+		check(this.raw.setPingInterval(seconds), "setPingInterval", this) 
+	}
+
+	setDllBandwidth(q: number): void { 
+		check(this.raw.setDllBandwidth(q), "setDllBandwidth", this) 
+	}
+
+	setResampleMethod(method: number): void { 
+		check(this.raw.setResampleMethod(method), "setResampleMethod", this) 
+	}
+
+	setBinaryFormat(enabled: boolean): void { 
+		check(this.raw.setBinaryFormat(enabled), "setBinaryFormat", this) 
+	}
+
+	setEventHandler(cb:(ev:E) => void): void {
+		this.raw.setEventHandler(cb)
+	}
+
+	pollEvents(): number { return this.raw.pollEvents() }
+
+	setDynamicResampling(enabled: boolean): void {
+		check(this.raw.setDynamicResampling(enabled), "setDynamicResampling", this)
+	}
+
+	setBufferSize(seconds: number): void {
+		check(this.raw.setBufferSize(seconds), "setBufferSize", this)
+	}
+
+	getRealSampleRate(): number {
+		return this.raw.getRealSampleRate()
+	}
+
+	eventsAvailable(): boolean {
+		return this.raw.eventsAvailable()
+	}
+
+	delete():void {
+		this.raw.delete()
+	}
+	[Symbol.dispose]():void { this.raw.delete() }
+}
+
+/* --------------------------- AooSource -------------------------- */
+
+export class AooSource extends AooStreamEndpoint<AooSourceEvent> {
+	constructor(id:number) {
+		super(new (getCore().AooSource)(id))
+	}
+
 	setFormat():void { 
 		check(this.raw.setFormat(), "setFormat", this )
+	}
+
+	setRedundancy(n: number): void { 
+		check(this.raw.setRedundancy(n), "setRedundancy", this) 
+	}
+	
+	setResendBufferSize(seconds: number): void { 
+		check(this.raw.setResendBufferSize(seconds), "setResendBufferSize", this) 
+	}
+
+	setStreamTimeSendInterval(seconds: number): void { 
+		check(this.raw.setStreamTimeSendInterval(seconds), "setStreamTimeSendInterval", this) 
 	}
 
 	addSink(ip:string, port:number, id:number): void {
@@ -122,65 +220,78 @@ export class AooSource {
 	startStream():void { 
 		check(this.raw.startStream(), "startStream", this) 
 	}
+
+	stopStream(sampleOffset = 0): void {
+		check(this.raw.stopStream(sampleOffset), "stopStream", this)
+	}
 	
 	process(interleaved: Float32Array): number {
 		return this.raw.process(interleaved)
-	}
-
-	handleMessage(bytes:Uint8Array, ip:string, port:number): number {
-		return this.raw.handleMessage(bytes, ip, port)
-	}
-
-	send(cb:AooSendCallback): number {
-		return this.raw.send(cb)
 	}
 	
 	addStreamMessage(type:number, data:Uint8Array, sampleOffset = 0, channel = 0): number {
 		return this.raw.addStreamMessage(type, data, sampleOffset, channel)
 	}
 
-	setEventHandler(cb:AooSourceEventHandler): void {
-		this.raw.setEventHandler(cb)
+	removeSink(ip: string, port: number, id: number): void { 
+		check(this.raw.removeSink(ip, port, id), "removeSink", this) 
 	}
 
-	pollEvents(): number { return this.raw.pollEvents() }
-
-
-	delete():void {
-		this.raw.delete()
+	activate(ip: string, port: number, id: number, active: boolean): void { 
+		check(this.raw.activate(ip, port, id, active), "activate", this) 
 	}
-	[Symbol.dispose]():void { this.raw.delete() }
+	
+	setSinkChannelOffset(ip: string, port: number, id: number, onset: number): void { 
+		check(this.raw.setSinkChannelOffset(ip, port, id, onset), "setSinkChannelOffset", this) 
+	}
+
+	removeAllSinks(): void {
+		check(this.raw.removeAllSinks(), "removeAllSinks", this)
+	}
 }
 
-export class AooSinkBase {
-	protected readonly raw: any
+/* --------------------------- AooSource -------------------------- */
+/* Superclass that implements methods that can be used in both the Browser and in Node */
 
+export class AooSinkBase extends AooStreamEndpoint<AooSinkEvent> {
 	constructor(id: number) {
-		this.raw = new (getCore().AooSink)(id)
-	}
-
-	setup(channels: number, sampleRate: number, blockSize: number): void {
-		check(this.raw.setup(channels, sampleRate, blockSize), "setup", this)
+		super(new (getCore().AooSink)(id))
 	}
 
 	setLatency(seconds: number): void { 
 		check(this.raw.setLatency(seconds), "setLatency", this) 
 	}
+
+	setResendData(enabled: boolean): void { 
+		check(this.raw.setResendData(enabled), "setResendData", this) 
+	}
+
+	setResendInterval(seconds: number): void { 
+		check(this.raw.setResendInterval(seconds), "setResendInterval", this) 
+	}
+
+	setResendLimit(n: number): void { 
+		check(this.raw.setResendLimit(n), "setResendLimit", this) 
+	}
 	
 	inviteSource(ip: string, port: number, id: number): void {
 		check(this.raw.inviteSource(ip, port, id), "inviteSource", this)
 	}
-	
-	handleMessage(bytes: Uint8Array, ip: string, port: number): number {
-		return this.raw.handleMessage(bytes, ip, port)
+
+	uninviteSource(ip: string, port: number, id: number): void { 
+		check(this.raw.uninviteSource(ip, port, id), "uninviteSource", this) 
 	}
 
-	send(cb: AooSendCallback): number { 
-		return this.raw.send(cb) 
+	resetSource(ip: string, port: number, id: number): void { 
+		check(this.raw.resetSource(ip, port, id), "resetSource", this) 
 	}
 
-	setEventHandler(cb: AooSinkEventHandler): void {
-		this.raw.setEventHandler(cb)
+	getBufferFillRatio(ip: string, port: number, id: number): number { 
+		return this.raw.getBufferFillRatio(ip, port, id) 
+	}
+
+	uninviteAll(): void {
+		check(this.raw.uninviteAll(), "uninviteAll", this)
 	}
 
 	setStreamMessageHandler(cb: AooStreamMessageHandler): void {
@@ -193,19 +304,7 @@ export class AooSinkBase {
 		})
 	}
 
-	// process(): Float32Array {
-	// 	return (this.raw.process() as Float32Array).slice()
-	// }
-
-
-	pollEvents(): number { 
-		return this.raw.pollEvents() 
-	}
-
 	pollStreamMessages(): number {
 		return this.raw.pollStreamMessages()
 	}
-
-	delete(): void { this.raw.delete() }
-	[Symbol.dispose](): void { this.raw.delete() }
 }

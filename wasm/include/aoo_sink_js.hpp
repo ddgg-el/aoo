@@ -58,7 +58,50 @@ public:
 		interleaved_.assign((size_t) c * n, 0.0f);
 
 		return sink_->setup(c, sr, n, 0);
-	};
+	}
+
+	int reset() {
+		return sink_->reset();
+	}
+
+	int setId(int id) {
+		return sink_->setId(id);
+	}
+
+	int setPacketSize(int bytes) {
+		return sink_->setPacketSize(bytes);
+	}
+
+	int setPingInterval(double seconds) {
+		return sink_->setPingInterval(seconds);
+	}
+
+	int setDllBandwidth(double q) {
+		float bw = (float)q;
+		// return sink_->setDllBandwidth(q);
+		// FIXME: bug in in sink.cpp
+		return sink_->control(kAooCtlSetDllBandwidth, 0, &bw, sizeof(bw));
+	}
+
+	int setResendData(bool enabled) {
+		return sink_->setResendData(enabled);
+	}
+
+	int setResendInterval(double seconds) {
+		return sink_->setResendInterval(seconds);
+	}
+
+	int setResendLimit(int n) {
+		return sink_->setResendLimit(n);
+	}
+
+	int setBinaryFormat(bool enabled) {
+		return sink_->setBinaryFormat(enabled);
+	}
+
+	int setResampleMethod(int mode) {
+		return sink_->setResampleMethod((AooResampleMethod) mode);
+	}
 
 	/// Set the jitter-buffer latency in seconds.
 	int setLatency(double s) {
@@ -143,6 +186,49 @@ public:
 
 		AooEndpoint ep { &addr, len, id};
 		return sink_->inviteSource(ep, nullptr);
+	}
+
+	int uninviteSource(std::string ip, int port, AooId id) {
+		AooSockAddrStorage addr; AooAddrSize len;
+		if (!ipToSockAddr(ip, port, addr, len)) return kAooErrorBadArgument;
+		AooEndpoint ep { &addr, len, id };
+		return sink_->uninviteSource(ep);
+	}
+	int resetSource(std::string ip, int port, AooId id) {
+		AooSockAddrStorage addr; AooAddrSize len;
+		if (!ipToSockAddr(ip, port, addr, len)) return kAooErrorBadArgument;
+		AooEndpoint ep { &addr, len, id };
+		return sink_->resetSource(ep);
+	}
+	double getBufferFillRatio(std::string ip, int port, AooId id) {
+		AooSockAddrStorage addr; AooAddrSize len;
+		if (!ipToSockAddr(ip, port, addr, len)) return 0.0;
+		AooEndpoint ep { &addr, len, id };
+		double ratio = 0.0;
+		sink_->getBufferFillRatio(ep, ratio);
+		return ratio;
+	}
+
+	int uninviteAll() {
+		return sink_->uninviteAll();
+	}
+
+	int setDynamicResampling(bool enabled) {
+		return sink_->setDynamicResampling(enabled);
+	}
+
+	int setBufferSize(double seconds) {
+		return sink_->setBufferSize(seconds);
+	}
+
+	double getRealSampleRate() {
+		AooSampleRate sr = 0;
+		sink_->getRealSampleRate(sr);
+		return sr;
+	}
+
+	bool eventsAvailable() {
+		return sink_->eventsAvailable();
 	}
 
 	/// Feed an incoming packet into the sink. `ip` must be an IPv4/IPv6 literal (no DNS).
@@ -263,12 +349,38 @@ private:
 			break;
 		}
 		// remaining event types: not individually marshalled to JS
-		case kAooEventStreamTime:
+		case kAooEventStreamTime: {
+			const auto& t = event.streamTime;
+			ev.set("type", std::string("streamTime"));
+			ev.set("endpoint", endPointToVal(t.endpoint));
+			ev.set("sourceTime", aoo_ntpTimeToSeconds(t.sourceTime));
+			ev.set("sinkTime", aoo_ntpTimeToSeconds(t.sinkTime));
+			ev.set("sampleOffset", t.sampleOffset);
+			break;
+		}	
 		case kAooEventBufferUnderrun:
+			ev.set("type", std::string("bufferUnderrun"));
+			ev.set("endpoint", endPointToVal(event.bufferUnderrun.endpoint));
+			break;
 		case kAooEventBufferOverrun:
+			ev.set("type", std::string("bufferOverrun"));
+			ev.set("endpoint", endPointToVal(event.bufferOverrrun.endpoint)); // NB: AOO's union field is spelled with 3 r's
+			break;
 		case kAooEventBlockDrop:
+			ev.set("type", std::string("blockDrop"));
+			ev.set("endpoint", endPointToVal(event.blockDrop.endpoint));
+			ev.set("count", event.blockDrop.count);
+			break;
 		case kAooEventBlockResend:
+			ev.set("type", std::string("blockResend"));
+			ev.set("endpoint", endPointToVal(event.blockResend.endpoint));
+			ev.set("count", event.blockResend.count);
+			break;
 		case kAooEventBlockXRun:
+			ev.set("type", std::string("blockXRun"));
+			ev.set("endpoint", endPointToVal(event.blockXRun.endpoint));
+			ev.set("count", event.blockXRun.count);
+			break;
 		default:
 			ev.set("type", (int)event.type);
 			return;
