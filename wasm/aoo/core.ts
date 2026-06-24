@@ -37,7 +37,7 @@ export type AooSinkEvent =
 	| { type: "blockDrop" | "blockResend" | "blockXRun", endpoint: AooEndpoint, count: number }
 	| { type: "streamTime", endpoint: AooEndpoint, sourceTime: number, sinkTime: number, sampleOffset: number }
 
-	export type AooSourceEventHandler = (ev: AooSourceEvent) => void
+export type AooSourceEventHandler = (ev: AooSourceEvent) => void
 export type AooSinkEventHandler = (ev: AooSinkEvent) => void
 
 /* --------------------------- stream messages ---------------------------- */
@@ -109,6 +109,19 @@ export const AooDataType: AooDataTypes = {
 	get osc()  { return getCore().kAooDataOSC },
 	get midi() { return getCore().kAooDataMIDI },
 	get json() { return getCore().kAooDataJSON },
+}
+
+export interface AooMsgTypes { 
+	source:number, 
+	sink:number }
+
+export const AooMsgType: AooMsgTypes = {
+	get source() { return getCore().kAooMsgTypeSource},
+	get sink() { return getCore().kAooMsgTypeSink}
+}
+
+export function messageType(bytes: Uint8Array): number {
+	return getCore().messageType(bytes);
 }
 
 /* --------------------------- AooStreamEndpoint -------------------------- */
@@ -190,9 +203,10 @@ export abstract class AooStreamEndpoint<E> {
 	[Symbol.dispose]():void { this.raw.delete() }
 }
 
-/* --------------------------- AooSource -------------------------- */
+/* --------------------------- AooSourceBase -------------------------- */
+/* Superclass that implements methods that can be used in both the Browser and in Node */
 
-export class AooSource extends AooStreamEndpoint<AooSourceEvent> {
+export class AooSourceBase extends AooStreamEndpoint<AooSourceEvent> {
 	constructor(id:number) {
 		super(new (getCore().AooSource)(id))
 	}
@@ -258,7 +272,7 @@ export class AooSource extends AooStreamEndpoint<AooSourceEvent> {
 	}
 }
 
-/* --------------------------- AooSource -------------------------- */
+/* --------------------------- AooSinkBase -------------------------- */
 /* Superclass that implements methods that can be used in both the Browser and in Node */
 
 export class AooSinkBase extends AooStreamEndpoint<AooSinkEvent> {

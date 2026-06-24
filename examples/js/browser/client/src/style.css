@@ -17,3 +17,16 @@ button {
 	text-transform:uppercase;
 	font-family: Arial, Helvetica, sans-serif;
 }
+
+ul {
+	list-style:lower-greek;
+}
+
+a {
+	color: var(--primary-text-color);
+	text-decoration: none;
+}
+
+a:hover {
+	opacity: 0.5; 
+}

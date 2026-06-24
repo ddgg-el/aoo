@@ -12,8 +12,10 @@ export class AooSink extends AooSinkBase {
 	}
 }
 
-export { AooSource, 
+export { AooSourceBase as AooSource, 
 	AooDataType, 
+	AooMsgType,
+	messageType,
 	AooResampleMethod,
 	aoo_terminate, 
 	aoo_version, 

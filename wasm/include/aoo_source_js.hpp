@@ -197,7 +197,14 @@ public:
 	}
 
 	int pollEvents() { return source_->pollEvents(); }
+
+	AooError processWorklet(AooSample** planar, int nframes) {
+		return source_->process(planar, nframes, aoo_getCurrentNtpTime());
+	}
+
+	int channels() const { return nchannels_; }
 	
+#pragma region PRIVATE MEMBERS
 private:
 	AooSource::Ptr source_;
 	int nchannels_ = 0;
@@ -208,7 +215,7 @@ private:
 
 	emscripten::val eventCb_ = emscripten::val::undefined();
 	emscripten::val sendCb_ = emscripten::val::undefined();
-
+#pragma region PRIVATE METHODS
 	void handle_event(const AooEvent& event) {
 		if(eventCb_.isUndefined()) return;
 		auto ev = emscripten::val::object();

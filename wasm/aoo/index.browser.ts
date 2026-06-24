@@ -3,12 +3,29 @@ import {
 	initWith,
 	isInitialized,
 	getCore,
-	AooSinkBase
+	AooSinkBase,
+	AooSourceBase
 } from "./core.js"
 
 export async function aoo_initialize(): Promise<void> {
 	if(isInitialized()) return
 	initWith(await createCore())
+}
+
+export function createInputNode(ctx: AudioContext, channels: number): Promise<AudioWorkletNode> {
+	return new Promise(resolve => {
+		getCore().createInputNode(channels, ctx, (node:AudioWorkletNode) => resolve(node))
+	})
+}
+
+export class AooSource extends AooSourceBase {
+	createInputNode(ctx: AudioContext, channels: number): Promise<AudioWorkletNode> {
+		return new Promise(resolve => {
+			getCore().createInputNode(this.raw, channels, ctx, (node: AudioWorkletNode) => resolve(node))
+			this.setFormat()
+			this.setBufferSize(0.05);
+		})
+	}
 }
 
 export class AooSink extends AooSinkBase {
@@ -17,9 +34,6 @@ export class AooSink extends AooSinkBase {
 			getCore().createOutputNode(this.raw, channels, ctx, (node: AudioWorkletNode) => resolve(node))
 		})
 	}
-	// connectToOutput(channels: number): void {
-	// 	getCore().startAudioOutput(this.raw, channels)
-	// }
 	
 	playBackTime(): number {
 		return this.raw.playBackTime()
@@ -34,8 +48,9 @@ export class AooSink extends AooSinkBase {
 // 	getCore().resumeAudio()
 // }
 export {
-	AooSource, 
 	AooDataType, 
+	AooMsgType,
+	messageType,
 	AooResampleMethod,
 	aoo_terminate, 
 	aoo_version, 

@@ -3,12 +3,21 @@
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>AOO</title>
+	<title>Document</title>
 </head>
 <body>
-	<h1>AOO</h1>
-	<button id="start-audio" onclick="startAudio()">Start Audio</button>
-	<pre id="out">loading…</pre>
-	<script type="module" src="/src/main.ts"></script>
+	<div class="container">
+		<h1>Welcome</h1>
+		<div class="container">
+			<ul>
+				<li><a href="sink.html">Sink</a></li>
+				<li><a href="source.html">Source</a></li>
+				<li><a href="duplex.html">Duplex</a></li>
+			</ul>
+		</div>
+	</div>
+	<script type="module">
+		import "/src/style.css"
+	</script>
 </body>
 </html>

@@ -1,5 +1,8 @@
+#include <cstdint>
 #include <emscripten/bind.h>
+#include <emscripten/val.h>
 #include <string>
+#include <vector>
 #include "aoo.h"
 #include "aoo_types.h"
 
@@ -16,12 +19,23 @@ static std::string aooStrerror(int err) {
 	return aoo_strerror((AooError) err);
 }
 
+static int messageType(emscripten::val data) {
+	std::vector<uint8_t> bytes = emscripten::convertJSArrayToNumberVector<uint8_t>(data);
+	AooMsgType type;
+	AooId id;
+	AooInt32 offset;
+	if(aoo_parsePattern((const AooByte*)bytes.data(), (AooInt32)bytes.size(), &type, &id, &offset) != kAooOk) return -1;
+	return (int)type;
+}
+
 EMSCRIPTEN_BINDINGS(aoo_core) {
 	emscripten::function("initialize", &aooInitialize);
 	emscripten::function("terminate", &aoo_terminate);
 	emscripten::function("versionString", &aooVersion);
 
 	emscripten::function("strerror", &aooStrerror);
+
+	emscripten::function("messageType", &messageType);
 
 	emscripten::constant("kAooDataRaw", (int)kAooDataRaw);
 	emscripten::constant("kAooDataText", (int)kAooDataText);
@@ -32,4 +46,7 @@ EMSCRIPTEN_BINDINGS(aoo_core) {
 	emscripten::constant("kAooResampleHold",   (int) kAooResampleHold);
 	emscripten::constant("kAooResampleLinear", (int) kAooResampleLinear);
 	emscripten::constant("kAooResampleCubic",  (int) kAooResampleCubic);
+
+	emscripten::constant("kAooMsgTypeSource", (int)kAooMsgTypeSource);
+	emscripten::constant("kAooMsgTypeSink",   (int)kAooMsgTypeSink);
 }

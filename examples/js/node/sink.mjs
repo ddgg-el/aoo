@@ -9,7 +9,7 @@ import portAudio from "naudiodon2"
 import { chooseAudioDevice } from "./utils.mjs";
 
 const SINK_ID = 1
-const PORT = 9001
+const PORT = 9002
 
 const CHANNELS = 1
 const SR = 48000
@@ -21,6 +21,8 @@ await aoo_initialize();
 const sink = new AooSink(SINK_ID);
 sink.setup(CHANNELS, SR, BLOCK);
 sink.setLatency(0.05);
+
+sink.inviteSource({ip:"127.0.0.1", port:9001, id: 1})
 
 sink.setEventHandler((ev) => {
   switch (ev.type) {
@@ -73,13 +75,12 @@ sink.setStreamMessageHandler((msg) => {
   }
 })
 
-const sock = dgram.createSocket({ type: "udp6", ipv6Only: false });
+// const sock = dgram.createSocket({ type: "udp6", ipv6Only: false });
+const sock = dgram.createSocket("udp4");
 
 sock.on("message", (msg, rinfo) => {
   sink.handleMessage(new Uint8Array(msg), rinfo.address, rinfo.port);
 });
-
-
 
 const pa = portAudio.AudioIO({
   outOptions: {

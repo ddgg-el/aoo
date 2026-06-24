@@ -189,11 +189,13 @@ public:
 		if(!e.ok) return kAooErrorBadArgument;
 		return sink_->uninviteSource(e.endpoint());
 	}
+
 	int resetSource(std::string ip, int port, AooId id) {
 		auto e = resolveEndpoint(ip, port, id);
 		if(!e.ok) return kAooErrorBadArgument;
 		return sink_->resetSource(e.endpoint());
 	}
+
 	double getBufferFillRatio(std::string ip, int port, AooId id) {
 		auto e = resolveEndpoint(ip, port, id);
 		if(!e.ok) return 0.0;
@@ -238,6 +240,7 @@ public:
 	/// Single-threaded (Node) audio tick: render one block, interleave it, and return
 	/// a view of the interleaved buffer. Stream messages are dispatched synchronously
 	/// via handleStreamMessage.
+	// TODO: review interleaved or not
 	emscripten::val process() {
 		AooNtpTime t = aoo_getCurrentNtpTime();
 		sink_->process(chanPtrs_.data(), blocksize_, t, &AooSinkJS::handleStreamMessage, this);
@@ -259,7 +262,7 @@ public:
 		playSamples_.store(streamSamples_, std::memory_order_release);
 		return err;
 	}
-#pragma region "PRIVATE MEMBERS"
+#pragma region PRIVATE MEMBERS
 private:
 	AooSink::Ptr sink_;                             ///< the owned AOO sink
 	int nchannels_ = 0;                             ///< channel count (from setup)
@@ -282,7 +285,7 @@ private:
 	std::atomic<uint32_t> msgRead_{0};              ///< ring consumer index (main thread)
 	std::atomic<uint32_t> msgDropped_{0};           ///< dropped-message counter
 
-#pragma region "PRIVATE METHODS"
+#pragma region PRIVATE METHODS
 	/// Build a JS object for one AooEvent and pass it to eventCb_ (poll-mode delivery).
 	void handle_event(const AooEvent& event) {
 		if(eventCb_.isUndefined()) return;
