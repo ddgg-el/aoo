@@ -49,27 +49,21 @@ public:
 	}
 
 	int removeSink(std::string ip, int port, AooId id) {
-		AooSockAddrStorage addr;
-		AooAddrSize len;
-		if(!ipToSockAddr(ip, port, addr, len)) return kAooErrorBadArgument;
-		AooEndpoint ep {&addr, len, id};
-		return source_->removeSink(ep);
+		auto e = resolveEndpoint(ip, port, id);
+		if(!e.ok) return kAooErrorBadArgument;
+		return source_->removeSink(e.endpoint());
 	}
 
 	int activate(std::string ip, int port, AooId id, bool active) {
-		AooSockAddrStorage addr;
-		AooAddrSize len;
-		if(!ipToSockAddr(ip, port, addr, len)) return kAooErrorBadArgument;
-		AooEndpoint ep { &addr, len, id};
-		return source_->activate(ep, active ? kAooTrue : kAooFalse);
+		auto e = resolveEndpoint(ip, port, id);
+		if(!e.ok) return kAooErrorBadArgument;
+		return source_->activate(e.endpoint(), active ? kAooTrue : kAooFalse);
 	}
 
 	int setSinkChannelOffset(std::string ip, int port, AooId id, int onset) {
-		AooSockAddrStorage addr;
-		AooAddrSize len;
-		if(!ipToSockAddr(ip, port, addr, len)) return kAooErrorBadArgument;
-		AooEndpoint ep {&addr, len, id };
-		return source_->setSinkChannelOffset(ep, onset);
+		auto e = resolveEndpoint(ip, port, id);
+		if(!e.ok) return kAooErrorBadArgument;
+		return source_->setSinkChannelOffset(e.endpoint(), onset);
 	}
 
 	int setPacketSize(int bytes) {
@@ -115,14 +109,21 @@ public:
 	}
 
 	int addSink(std::string ip, int port, AooId id) {
-		AooSockAddrStorage addr;
-		AooAddrSize len = sizeof(addr);
+		auto e = resolveEndpoint(ip, port, id);
+		if(!e.ok) return kAooErrorBadArgument;
+		return source_->addSink(e.endpoint(), kAooTrue);
+	}
 
-		if(aoo_ipEndpointToSockAddr(ip.c_str(), (AooUInt16) port, kAooSocketAnyFamily, &addr, &len) != kAooOk) {
-			return kAooErrorBadArgument;
-		}
-		AooEndpoint ep { &addr, len, id};
-		return source_->addSink(ep, kAooTrue);
+	int handleInvite(std::string ip, int port, AooId id, AooId token, bool accept) {
+		auto e = resolveEndpoint(ip, port, id);
+		if(!e.ok) return kAooErrorBadArgument;
+		return source_->handleInvite(e.endpoint(), token, accept ? kAooTrue : kAooFalse);
+	}
+
+	int handleUninvite(std::string ip, int port, AooId id, AooId token, bool accept) {
+		auto e = resolveEndpoint(ip, port, id);
+		if(!e.ok) return kAooErrorBadArgument;
+		return source_->handleUninvite(e.endpoint(), token, accept ? kAooTrue : kAooFalse);
 	}
 
 	int startStream() {

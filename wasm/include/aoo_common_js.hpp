@@ -22,6 +22,26 @@ struct MsgSlot {
 	AooId id;
 };
 
+inline bool ipToSockAddr(const std::string& ip, int port, AooSockAddrStorage& addr, AooAddrSize& len) {
+	len = sizeof(addr);
+	return aoo_ipEndpointToSockAddr(ip.c_str(), (AooUInt16)port, kAooSocketAnyFamily, &addr, &len) == kAooOk;
+}
+
+struct ResolvedEndpoint {
+	AooSockAddrStorage addr;
+	AooAddrSize len = sizeof(addr);
+	AooId id = 0;
+	bool ok = false;
+	AooEndpoint endpoint() const { return AooEndpoint{ &addr, len, id }; }
+};
+
+inline ResolvedEndpoint resolveEndpoint(const std::string& ip, int port, AooId id) {
+	ResolvedEndpoint r;
+	r.id = id;
+	r.ok = ipToSockAddr(ip, port, r.addr, r.len);
+	return r;
+}
+
 inline emscripten::val endPointToVal(const AooEndpoint& ep) {
 	char ipbuf[64];
 	AooSize ipsize = sizeof(ipbuf);
@@ -32,9 +52,4 @@ inline emscripten::val endPointToVal(const AooEndpoint& ep) {
 	o.set("port", (int)port);
 	o.set("id", ep.id);
 	return o;
-}
-
-inline bool ipToSockAddr(const std::string& ip, int port, AooSockAddrStorage& addr, AooAddrSize& len) {
-	len = sizeof(addr);
-	return aoo_ipEndpointToSockAddr(ip.c_str(), (AooUInt16)port, kAooSocketAnyFamily, &addr, &len) == kAooOk;
 }

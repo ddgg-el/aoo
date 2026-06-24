@@ -47,7 +47,7 @@ export async function makeLoopback() {
 		source.handleMessage(copy, SINK_ADDR.ip, SINK_ADDR.port)
 	}
 
-	source.addSink(SINK_ADDR.ip, SINK_ADDR.port, SINK_ADDR.id)
+	source.addSink(SINK_ADDR)
 	source.startStream()
 
 	const block = new Float32Array(CHANNELS * BLOCK)

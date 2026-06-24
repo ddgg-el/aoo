@@ -7,8 +7,7 @@ const CHANNELS = 1
 // const TARGET = BLOCK * CHANNELS * 4
 
 const WS_URL = "ws://localhost:8081"
-const SOURCE_HOST = "127.0.0.1"
-const SOURCE_PORT = 9001
+const SOURCE_ADDR = { ip: "127.0.0.1", port: 9001, id: 1 }
 
 await aoo_initialize()
 
@@ -33,7 +32,7 @@ const ws = new WebSocket(WS_URL)
 ws.binaryType = "arraybuffer"
 ws.onopen = () => console.log("WS connected")
 ws.onmessage = (ev) => {
-	aooSink.handleMessage(new Uint8Array(ev.data as ArrayBuffer), SOURCE_HOST, SOURCE_PORT)
+	aooSink.handleMessage(new Uint8Array(ev.data as ArrayBuffer), SOURCE_ADDR.ip, SOURCE_ADDR.port)
 }
 
 /**

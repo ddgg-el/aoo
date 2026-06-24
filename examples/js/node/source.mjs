@@ -9,9 +9,7 @@ import portaudio from "naudiodon2"
 import { chooseAudioDevice } from "./utils.mjs"
 
 const SOURCE_ID = 1
-const SINK_HOST = "127.0.0.1"
-const SINK_PORT = 9001
-const SINK_ID = 1
+const SINK_ADDR = { ip: "127.0.0.1", port: 9001, id: 1 }
 
 const CHANNELS = 1
 const SR = 48000
@@ -122,7 +120,7 @@ process.on("SIGINT", () => shutdown(0) )
 
 sock.bind(()=> {
 	try{
-		source.addSink(SINK_HOST, SINK_PORT, SINK_ID)
+		source.addSink(SINK_ADDR)
 		source.startStream()
 		pa.start()
 	} catch (err) {

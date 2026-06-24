@@ -179,33 +179,26 @@ public:
 
 	/// Actively invite a source endpoint. `ip` must be an IPv4/IPv6 literal (no DNS).
 	int inviteSource(std::string ip, int port, AooId id) {
-		AooSockAddrStorage addr;
-		AooAddrSize len = sizeof(addr);
-
-		if(aoo_ipEndpointToSockAddr(ip.c_str(), (AooUInt16) port, kAooSocketAnyFamily, &addr, &len) != kAooOk) return kAooErrorBadArgument;
-
-		AooEndpoint ep { &addr, len, id};
-		return sink_->inviteSource(ep, nullptr);
+		auto e = resolveEndpoint(ip, port, id);
+		if(!e.ok) return kAooErrorBadArgument;
+		return sink_->inviteSource(e.endpoint(), nullptr);
 	}
 
 	int uninviteSource(std::string ip, int port, AooId id) {
-		AooSockAddrStorage addr; AooAddrSize len;
-		if (!ipToSockAddr(ip, port, addr, len)) return kAooErrorBadArgument;
-		AooEndpoint ep { &addr, len, id };
-		return sink_->uninviteSource(ep);
+		auto e = resolveEndpoint(ip, port, id);
+		if(!e.ok) return kAooErrorBadArgument;
+		return sink_->uninviteSource(e.endpoint());
 	}
 	int resetSource(std::string ip, int port, AooId id) {
-		AooSockAddrStorage addr; AooAddrSize len;
-		if (!ipToSockAddr(ip, port, addr, len)) return kAooErrorBadArgument;
-		AooEndpoint ep { &addr, len, id };
-		return sink_->resetSource(ep);
+		auto e = resolveEndpoint(ip, port, id);
+		if(!e.ok) return kAooErrorBadArgument;
+		return sink_->resetSource(e.endpoint());
 	}
 	double getBufferFillRatio(std::string ip, int port, AooId id) {
-		AooSockAddrStorage addr; AooAddrSize len;
-		if (!ipToSockAddr(ip, port, addr, len)) return 0.0;
-		AooEndpoint ep { &addr, len, id };
+		auto e = resolveEndpoint(ip, port, id);
+		if(!e.ok) return 0.0;
 		double ratio = 0.0;
-		sink_->getBufferFillRatio(ep, ratio);
+		sink_->getBufferFillRatio(e.endpoint(), ratio);
 		return ratio;
 	}
 

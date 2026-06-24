@@ -5,5 +5,5 @@
 		"target": "esnext",
 		"types": ["node"],
 	},
-	"include": ["*.mjs", "test/loopback.mjs"]
+	"include": ["*.mjs", "test/loopback.mjs", "test/invite.test.mjs",]
 }

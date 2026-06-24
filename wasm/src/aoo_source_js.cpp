@@ -21,6 +21,8 @@ EMSCRIPTEN_BINDINGS(AooSource) {
 		.function("setFormat", &AooSourceJS::setFormat)
 		.function("addSink", &AooSourceJS::addSink)
 		.function("removeSink", &AooSourceJS::removeSink)
+		.function("handleInvite", &AooSourceJS::handleInvite)
+		.function("handleUninvite", &AooSourceJS::handleUninvite)
 		.function("activate", &AooSourceJS::activate)
 		.function("setSinkChannelOffset", &AooSourceJS::setSinkChannelOffset)
 		.function("startStream", &AooSourceJS::startStream)

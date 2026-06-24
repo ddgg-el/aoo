@@ -213,8 +213,8 @@ export class AooSource extends AooStreamEndpoint<AooSourceEvent> {
 		check(this.raw.setStreamTimeSendInterval(seconds), "setStreamTimeSendInterval", this) 
 	}
 
-	addSink(ip:string, port:number, id:number): void {
-		check(this.raw.addSink(ip, port, id), "addSink", this)
+	addSink(endpoint:AooEndpoint): void {
+		check(this.raw.addSink(endpoint.ip, endpoint.port, endpoint.id), "addSink", this)
 	}
 
 	startStream():void { 
@@ -233,16 +233,24 @@ export class AooSource extends AooStreamEndpoint<AooSourceEvent> {
 		return this.raw.addStreamMessage(type, data, sampleOffset, channel)
 	}
 
-	removeSink(ip: string, port: number, id: number): void { 
-		check(this.raw.removeSink(ip, port, id), "removeSink", this) 
+	removeSink(endpoint:AooEndpoint): void { 
+		check(this.raw.removeSink(endpoint.ip, endpoint.port, endpoint.id), "removeSink", this) 
 	}
 
-	activate(ip: string, port: number, id: number, active: boolean): void { 
-		check(this.raw.activate(ip, port, id, active), "activate", this) 
+	activate(endpoint:AooEndpoint, active: boolean): void { 
+		check(this.raw.activate(endpoint.ip, endpoint.port, endpoint.id, active), "activate", this) 
 	}
 	
-	setSinkChannelOffset(ip: string, port: number, id: number, onset: number): void { 
-		check(this.raw.setSinkChannelOffset(ip, port, id, onset), "setSinkChannelOffset", this) 
+	setSinkChannelOffset(endpoint:AooEndpoint, offset: number): void { 
+		check(this.raw.setSinkChannelOffset(endpoint.ip, endpoint.port, endpoint.id, offset), "setSinkChannelOffset", this) 
+	}
+
+	handleInvite(endpoint:AooEndpoint, token:number, accept: boolean): void {
+		check(this.raw.handleInvite(endpoint.ip, endpoint.port, endpoint.id, token, accept), "handleInvite", this)
+	}
+
+	handleUninvite(endpoint:AooEndpoint, token: number, accept: boolean): void {
+		check(this.raw.handleUninvite(endpoint.ip, endpoint.port, endpoint.id, token, accept), "handleUninvite", this)
 	}
 
 	removeAllSinks(): void {
@@ -274,20 +282,20 @@ export class AooSinkBase extends AooStreamEndpoint<AooSinkEvent> {
 		check(this.raw.setResendLimit(n), "setResendLimit", this) 
 	}
 	
-	inviteSource(ip: string, port: number, id: number): void {
-		check(this.raw.inviteSource(ip, port, id), "inviteSource", this)
+	inviteSource(endpoint:AooEndpoint): void {
+		check(this.raw.inviteSource(endpoint.ip, endpoint.port, endpoint.id), "inviteSource", this)
 	}
 
-	uninviteSource(ip: string, port: number, id: number): void { 
-		check(this.raw.uninviteSource(ip, port, id), "uninviteSource", this) 
+	uninviteSource(endpoint:AooEndpoint): void { 
+		check(this.raw.uninviteSource(endpoint.ip, endpoint.port, endpoint.id), "uninviteSource", this) 
 	}
 
-	resetSource(ip: string, port: number, id: number): void { 
-		check(this.raw.resetSource(ip, port, id), "resetSource", this) 
+	resetSource(endpoint:AooEndpoint): void { 
+		check(this.raw.resetSource(endpoint.ip, endpoint.port, endpoint.id), "resetSource", this) 
 	}
 
-	getBufferFillRatio(ip: string, port: number, id: number): number { 
-		return this.raw.getBufferFillRatio(ip, port, id) 
+	getBufferFillRatio(endpoint:AooEndpoint): number { 
+		return this.raw.getBufferFillRatio(endpoint.ip, endpoint.port, endpoint.id) 
 	}
 
 	uninviteAll(): void {

@@ -1,3 +1,4 @@
+// @ts-check
 import test from "node:test";
 import { makeLoopback, SOURCE_ADDR, SINK_ADDR } from "./loopback.mjs";
 import assert from "node:assert/strict";
@@ -84,10 +85,10 @@ test("reset / setId / removeAllSinks are callable", async () => {
 test("endpoint-taking methods are callable", async () => {
 	const lb = await makeLoopback()
 	await lb.run(300, 5)
-	assert.doesNotThrow(() => lb.source.activate(SINK_ADDR.ip, SINK_ADDR.port, SINK_ADDR.id, true))
-	assert.doesNotThrow(() => lb.source.setSinkChannelOffset(SINK_ADDR.ip, SINK_ADDR.port, SINK_ADDR.id, 0))
-	assert.doesNotThrow(() => lb.sink.resetSource(SOURCE_ADDR.ip, SOURCE_ADDR.port, SOURCE_ADDR.id))
-	assert.doesNotThrow(() => lb.source.removeSink(SINK_ADDR.ip, SINK_ADDR.port, SINK_ADDR.id)) // last — removes the sink
+	assert.doesNotThrow(() => lb.source.activate(SINK_ADDR, true))
+	assert.doesNotThrow(() => lb.source.setSinkChannelOffset(SINK_ADDR, 1))
+	assert.doesNotThrow(() => lb.sink.resetSource(SOURCE_ADDR))
+	assert.doesNotThrow(() => lb.source.removeSink(SINK_ADDR)) // last — removes the sink
 	lb.dispose()
 })
 
@@ -96,7 +97,7 @@ test("getBufferFillRatio returns a 0..1 ratio for a connected source", async () 
 	await lb.run(400, 5)
 	const add = lb.sinkEvents.find((e) => e.type === "sourceAdd")
 	assert.ok(add, "need a sourceAdd to know the source endpoint")
-	const ratio = lb.sink.getBufferFillRatio(add.endpoint.ip, add.endpoint.port, add.endpoint.id)
+	const ratio = lb.sink.getBufferFillRatio(add.endpoint)
 	assert.ok(ratio >= 0 && ratio <= 1, `fill ratio in [0,1], got ${ratio}`)
 	lb.dispose()
 })
