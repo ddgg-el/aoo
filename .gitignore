@@ -12,6 +12,11 @@
 *.cxxflags
 .qtc_**
 .vs**
+.cache
+
+node_modules/
+
+.clangd
 
 build**
 install/**

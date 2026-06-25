@@ -1,0 +1,16 @@
+{
+	"name": "aoo-native",
+	"version": "0.0.1",
+	"type": "module",
+	"scripts": {
+		"build": "cmake-js -G \"Unix Makefiles\" compile",
+		"rebuild": "cmake-js rebuild",
+		"test": "node test.mjs"
+	},
+	"devDependencies": {
+		"cmake-js": "^8.0.0"
+	},
+	"dependencies": {
+		"node-addon-api": "^8.8.0"
+	}
+}
