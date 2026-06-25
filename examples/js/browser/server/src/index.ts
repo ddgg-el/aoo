@@ -3,6 +3,7 @@ import { WebSocket, WebSocketServer } from "ws"
 
 const WS_PORT = 8081
 const UDP_PORT = 9001
+// const udpPeer = { address: "127.0.0.1", port: 9007 }
 
 const udp = dgram.createSocket("udp4")
 const wss = new WebSocketServer({port: WS_PORT})

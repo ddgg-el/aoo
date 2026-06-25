@@ -36,5 +36,10 @@ EMSCRIPTEN_BINDINGS(AooSource) {
 		.function("send", &AooSourceJS::send)
 		.function("setEventHandler", &AooSourceJS::setEventHandler)
 		.function("pollEvents", &AooSourceJS::pollEvents)
-		.function("addStreamMessage", &AooSourceJS::addStreamMessage);
+		.function("addStreamMessage", &AooSourceJS::addStreamMessage)
+		.function("setFormatOpus", &AooSourceJS::setFormatOpus)
+		.function("setOpusBitrate", &AooSourceJS::setOpusBitrate)
+		.function("setOpusComplexity", &AooSourceJS::setOpusComplexity)
+		.function("setOpusSignalType", &AooSourceJS::setOpusSignalType)
+		;
 }

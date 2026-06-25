@@ -7,12 +7,14 @@
 #include "aoo_source.hpp"
 #include "aoo_types.h"
 #include "codec/aoo_pcm.h"
+#include "opus_defines.h"
 #include <cstddef>
 #include <cstdint>
 #include <emscripten/val.h>
 #include <emscripten/wire.h>
 #include <string>
 #include <vector>
+#include "codec/aoo_opus.h"
 
 
 class AooSourceJS {
@@ -203,7 +205,30 @@ public:
 	}
 
 	int channels() const { return nchannels_; }
-	
+
+#pragma region OPUS
+	int setFormatOpus(int applicationType, int blockSize, int bitrate, int complexity) {
+		AooFormatOpus fmt;
+		AooFormatOpus_init(&fmt, nchannels_, 48000, 480, applicationType);
+		AooError err = source_->setFormat(fmt.header);
+		if(err != kAooOk) { return err; };
+		if(bitrate > 0) setOpusBitrate(bitrate);
+		if(complexity >=0) setOpusComplexity(complexity);
+		return kAooOk;
+	}
+
+	int setOpusBitrate(int bitrate) {
+		return source_->codecControl(kAooCodecOpus, OPUS_SET_BITRATE_REQUEST, 0, &bitrate, sizeof(bitrate));
+	}
+
+	int setOpusComplexity(int complexity) {
+		return source_->codecControl(kAooCodecOpus, OPUS_SET_COMPLEXITY_REQUEST, 0, &complexity, sizeof(complexity));
+	}
+
+	int setOpusSignalType(int signalType) {
+		return source_->codecControl(kAooCodecOpus, OPUS_SET_SIGNAL_REQUEST, 0, &signalType, sizeof(signalType));
+	}
+
 #pragma region PRIVATE MEMBERS
 private:
 	AooSource::Ptr source_;

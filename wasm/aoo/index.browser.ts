@@ -4,7 +4,8 @@ import {
 	isInitialized,
 	getCore,
 	AooSinkBase,
-	AooSourceBase
+	AooSourceBase,
+	AooFormat
 } from "./core.js"
 
 export async function aoo_initialize(): Promise<void> {
@@ -19,10 +20,10 @@ export function createInputNode(ctx: AudioContext, channels: number): Promise<Au
 }
 
 export class AooSource extends AooSourceBase {
-	createInputNode(ctx: AudioContext, channels: number): Promise<AudioWorkletNode> {
+	createInputNode(ctx: AudioContext, channels: number, format?:AooFormat): Promise<AudioWorkletNode> {
 		return new Promise(resolve => {
 			getCore().createInputNode(this.raw, channels, ctx, (node: AudioWorkletNode) => resolve(node))
-			this.setFormat()
+			this.setFormat(format)
 			this.setBufferSize(0.05);
 		})
 	}
@@ -58,6 +59,7 @@ export {
 } from "./core.js"
 
 export type { 
+	AooFormat,
 	AooEndpoint,
 	AooDataTypes,
 	AooSourceEvent,

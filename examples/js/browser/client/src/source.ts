@@ -21,7 +21,7 @@ btn.onclick = async () => {
 	
 	const ctx = new AudioContext()
 	
-	const node = await aooSource.createInputNode(ctx, CHANNELS)
+	const node = await aooSource.createInputNode(ctx, CHANNELS, {codec: "opus", bitrate: 6400, complexity: 5})
 	const osc = new OscillatorNode(ctx, { frequency: 200 })
 	const gain = new GainNode(ctx, { gain: parseFloat(vol.value) })
 	

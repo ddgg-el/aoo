@@ -23,6 +23,7 @@ export { AooSourceBase as AooSource,
 } from "./core.js"
 
 export type { 
+	AooFormat,
 	AooEndpoint, 
 	AooDataTypes, 
 	AooSourceEvent, 

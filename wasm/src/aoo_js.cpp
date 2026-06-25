@@ -5,6 +5,7 @@
 #include <vector>
 #include "aoo.h"
 #include "aoo_types.h"
+#include "opus_defines.h"
 
 
 static int aooInitialize() {
@@ -49,4 +50,13 @@ EMSCRIPTEN_BINDINGS(aoo_core) {
 
 	emscripten::constant("kAooMsgTypeSource", (int)kAooMsgTypeSource);
 	emscripten::constant("kAooMsgTypeSink",   (int)kAooMsgTypeSink);
+
+	emscripten::constant("OPUS_APPLICATION_AUDIO", (int)OPUS_APPLICATION_AUDIO);
+	emscripten::constant("OPUS_APPLICATION_RESTRICTED_LOWDELAY", (int)OPUS_APPLICATION_RESTRICTED_LOWDELAY);
+	emscripten::constant("OPUS_APPLICATION_VOIP", (int)OPUS_APPLICATION_VOIP);
+
+	emscripten::constant("OPUS_SIGNAL_MUSIC", (int)OPUS_SIGNAL_MUSIC);
+	emscripten::constant("OPUS_SIGNAL_VOICE", (int)OPUS_SIGNAL_VOICE);
+	emscripten::constant("OPUS_AUTO", (int)OPUS_AUTO);
+	
 }

@@ -6,10 +6,15 @@
 	<title>Aoo full-duplex</title>
 </head>
 <body>
-	<h1>Aoo full-duplex</h1>
-	<label>my tone (Hz) <input type="range" id="freq" type="number" value="200" min="100" max="300"></label>
-	<button id="start">Start</button>
-	<pre id="out">idle</pre>
+	<div>
+		<h1>Aoo full-duplex</h1>
+	</div>
+	<div>
+		<button id="start">Start</button>
+		<pre id="out">idle</pre>
+		<label>my tone (Hz) <input type="range" id="freq" type="number" value="200" min="100" max="300"></label>
+	</div>
+	<a href="/">back to home</a>
 	<script type="module" src="/src/duplex.ts"></script>
 </body>
 </html>

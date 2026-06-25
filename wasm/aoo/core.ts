@@ -6,15 +6,6 @@ export interface AooEndpoint {
 	id: number
 }
 
-/** AooDataType values, sourced from the C++ constants */
-export interface AooDataTypes {
-	raw: number
-	text: number
-	osc: number
-	midi: number
-	json: number
-}
-
 // TODO: verify with AooError
 export type AooStreamState = "inactive" | "active" | "buffering"
 
@@ -40,6 +31,16 @@ export type AooSinkEvent =
 export type AooSourceEventHandler = (ev: AooSourceEvent) => void
 export type AooSinkEventHandler = (ev: AooSinkEvent) => void
 
+/* --------------------------- stream format ---------------------------- */
+
+export type AooFormat = 
+	| {codec: "pcm"}
+	| { codec: "opus", 
+		application?: "audio" | "lowdelay" | "voip", 
+		blockSize?:number,
+		bitrate?: number, 
+		complexity?:number }
+
 /* --------------------------- stream messages ---------------------------- */
 
 export interface AooStreamMessage {
@@ -56,7 +57,7 @@ export type AooStreamMessageHandler = (msg: AooStreamMessage) => void
 
 export type AooSendCallback = (bytes: Uint8Array, ip: string, port: number) => void
 
-/* ------------------------------- AooSource ------------------------------ */
+/* ------------------------------- core ------------------------------ */
 
 let core: any | null = null
 
@@ -91,6 +92,8 @@ export function aoo_terminate(): void {
 	core = null
 }
 
+/* --------------------------- resample methods ---------------------------- */
+
 export interface AooResampleMethods {
 	hold:number
 	linear:number
@@ -103,6 +106,17 @@ export const AooResampleMethod: AooResampleMethods = {
 	get cubic() {return getCore().kAooResampleCubic}
 }
 
+/* --------------------------- data types ---------------------------- */
+
+/** AooDataType values, sourced from the C++ constants */
+export interface AooDataTypes {
+	raw: number
+	text: number
+	osc: number
+	midi: number
+	json: number
+}
+
 export const AooDataType: AooDataTypes = {
 	get raw()  { return getCore().kAooDataRaw },
 	get text() { return getCore().kAooDataText },
@@ -110,6 +124,8 @@ export const AooDataType: AooDataTypes = {
 	get midi() { return getCore().kAooDataMIDI },
 	get json() { return getCore().kAooDataJSON },
 }
+
+/* ---------------------------  message types ---------------------------- */
 
 export interface AooMsgTypes { 
 	source:number, 
@@ -122,6 +138,30 @@ export const AooMsgType: AooMsgTypes = {
 
 export function messageType(bytes: Uint8Array): number {
 	return getCore().messageType(bytes);
+}
+
+/* --------------------------  OPUS application --------------------------- */
+export interface AooOpusApplications {
+	audio:number
+	lowdelay:number
+	voip:number
+}
+
+export const AooOpusApplication: AooOpusApplications = {
+	get audio() { return getCore().OPUS_APPLICATION_AUDIO},
+	get lowdelay() { return getCore().OPUS_APPLICATION_LOWDELAY},
+	get voip() { return getCore().OPUS_APPLICATION_VOIP},
+}
+
+export interface AooOpusSignalTypes {
+	music:number
+	voice:number
+	auto:number
+}
+export const AooOpusSignalType: AooOpusSignalTypes = {
+	get music() { return getCore().OPUS_SIGNAL_MUSIC},
+	get voice() { return getCore().OPUS_SIGNAL_VOICE},
+	get auto() { return getCore().OPUS_AUTO}
 }
 
 /* --------------------------- AooStreamEndpoint -------------------------- */
@@ -205,14 +245,30 @@ export abstract class AooStreamEndpoint<E> {
 
 /* --------------------------- AooSourceBase -------------------------- */
 /* Superclass that implements methods that can be used in both the Browser and in Node */
-
+// TODO: add getter methods
 export class AooSourceBase extends AooStreamEndpoint<AooSourceEvent> {
 	constructor(id:number) {
 		super(new (getCore().AooSource)(id))
 	}
 
-	setFormat():void { 
-		check(this.raw.setFormat(), "setFormat", this )
+	setFormat(format?:AooFormat):void { 
+		if(format?.codec === "opus") {
+			check(this.raw.setFormatOpus(format.bitrate ?? 0, format.complexity ?? -1), "setFormat", this)
+		} else {
+			check(this.raw.setFormat(), "setFormat", this )
+		}
+	}
+
+	setOpusBitrate(bitrate:number): void {
+		check(this.raw.setOpusBitrate(bitrate), "setOpusBitrate", this)
+	}
+
+	setOpusComplexity(complexity:number): void {
+		check(this.raw.setOpusComplexity(complexity), "setOpusComplexity", this)
+	}
+
+	setOpusSignalType(signalType:AooOpusSignalTypes):void {
+		check(this.raw.setOpusSignalType(signalType), "setOpusSignalType", this)
 	}
 
 	setRedundancy(n: number): void { 
@@ -274,7 +330,7 @@ export class AooSourceBase extends AooStreamEndpoint<AooSourceEvent> {
 
 /* --------------------------- AooSinkBase -------------------------- */
 /* Superclass that implements methods that can be used in both the Browser and in Node */
-
+// TODO: add getter methods
 export class AooSinkBase extends AooStreamEndpoint<AooSinkEvent> {
 	constructor(id: number) {
 		super(new (getCore().AooSink)(id))
