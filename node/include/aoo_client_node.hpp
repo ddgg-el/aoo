@@ -18,6 +18,7 @@ private:
 	Napi::Value Connect(const Napi::CallbackInfo& info);
 	Napi::Value JoinGroup(const Napi::CallbackInfo& info);
 	Napi::Value PollEvents(const Napi::CallbackInfo& info);
+	Napi::Value SendPacket(const Napi::CallbackInfo& info);
 	
 	static void HandleEvent(void* user, const AooEvent* e, AooThreadLevel level);
 	void stopThreads();
