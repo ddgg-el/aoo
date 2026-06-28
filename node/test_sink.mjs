@@ -29,3 +29,5 @@ setInterval(() => {
 	console.log("rxPeak", rxPeak.toFixed(4))
 	rxPeak = 0
 }, 1000)
+
+setInterval(() => { for (const ev of sink.pollEvents()) console.log("sink event:", ev) }, 200)

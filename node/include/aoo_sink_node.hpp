@@ -17,9 +17,18 @@ private:
 	Napi::Value HandleMessage(const Napi::CallbackInfo& info);
 	Napi::Value Process(const Napi::CallbackInfo& info);
 	Napi::Value Send(const Napi::CallbackInfo& info);
+	Napi::Value PollEvents(const Napi::CallbackInfo& info);
 
 	static AooInt32 AOO_CALL SendTrampoline(void* user, const AooByte* data, AooInt32 size, const void* address, AooAddrSize addrlen, AooFlag flags);
+	static void HandleEvent(void* user, const AooEvent* e, AooThreadLevel);
 
+	struct PollCtx { 
+		Napi::Env env; 
+		Napi::Array arr; 
+		uint32_t n;
+	};
+
+	PollCtx* pollCtx_ = nullptr;
 	AooSink::Ptr sink_;
 	int channels_ = 1;
 	double sampleRate_ = 48000.0;

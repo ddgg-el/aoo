@@ -1,6 +1,5 @@
 // @ts-check
 import { AooClient, AooSource } from "aoo-native"
-import dgram from "node:dgram"
 
 const BLOCK_SIZE = 256
 const SAMPLE_RATE = 48000
@@ -32,5 +31,7 @@ setInterval(() => {
 	bytes += buf.length
 	packets++
 },5)
+
+setInterval(() => { for (const ev of src.pollEvents()) console.log("source event:", ev) }, 200)
 
 setInterval(() => console.log("emitted", packets, "packets", bytes, "bytes"), 1000)

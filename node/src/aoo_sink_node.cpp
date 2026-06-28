@@ -1,5 +1,7 @@
 #include "aoo_sink_node.hpp"
 #include "aoo.h"
+#include "aoo_types.h"
+#include "utils_node.hpp"
 
 void AooSinkWrap::Register(Napi::Env env, Napi::Object exports)
 {
@@ -9,6 +11,7 @@ void AooSinkWrap::Register(Napi::Env env, Napi::Object exports)
 		InstanceMethod("handleMessage", &AooSinkWrap::HandleMessage),
 		InstanceMethod("process",       &AooSinkWrap::Process),
 		InstanceMethod("send",          &AooSinkWrap::Send),
+		InstanceMethod("pollEvents",    &AooSinkWrap::PollEvents)
 	});
 	exports.Set("AooSink", func);
 }
@@ -18,6 +21,7 @@ AooSinkWrap::AooSinkWrap(const Napi::CallbackInfo& info)
 {
 	AooId id = info[0].As<Napi::Number>().Int32Value();
 	sink_ = AooSink::create(id);
+	sink_->setEventHandler(&AooSinkWrap::HandleEvent, this, kAooEventModePoll);
 }
 
 Napi::Value AooSinkWrap::Setup(const Napi::CallbackInfo& info)
@@ -94,4 +98,70 @@ AooInt32 AOO_CALL AooSinkWrap::SendTrampoline(void* user, const AooByte* data, A
 		Napi::Number::New(env, port)
 	});
 	return size;
+}
+
+Napi::Value AooSinkWrap::PollEvents(const Napi::CallbackInfo& info) {
+	Napi::Env env = info.Env();
+	Napi::Array arr = Napi::Array::New(env);
+	PollCtx ctx { env, arr, 0 };
+	pollCtx_ = &ctx;
+	sink_->pollEvents();
+	pollCtx_ = nullptr;
+	return arr;
+}
+
+void AooSinkWrap::HandleEvent(void* user, const AooEvent* e, AooThreadLevel) {
+	auto* self = static_cast<AooSinkWrap*>(user);
+	if (!self->pollCtx_) return;
+	Napi::Env env = self->pollCtx_->env;
+	Napi::Object o = Napi::Object::New(env);
+
+	switch (e->type) {
+	case kAooEventSourcePing: {
+		auto& p = e->sourcePing;
+		double rtt = aoo_ntpTimeToSeconds((p.t4 - p.t1) - (p.t3 - p.t2));
+		o.Set("type", "sourcePing");
+		o.Set("endpoint", aoo_node_util::endpointToObject(env, p.endpoint));
+		o.Set("rtt", Napi::Number::New(env, rtt));
+		break;
+	}
+	case kAooEventSourceAdd:
+	case kAooEventSourceRemove:
+		o.Set("type", e->type == kAooEventSourceAdd ? "sourceAdd" : "sourceRemove");
+		o.Set("endpoint", aoo_node_util::endpointToObject(env, e->endpoint.endpoint));
+		break;
+	case kAooEventStreamStart:
+		o.Set("type", "streamStart");
+		o.Set("endpoint", aoo_node_util::endpointToObject(env, e->streamStart.endpoint));
+		break;
+	case kAooEventStreamStop:
+		o.Set("type", "streamStop");
+		o.Set("endpoint", aoo_node_util::endpointToObject(env, e->endpoint.endpoint));
+		break;
+	case kAooEventStreamState: {
+		auto& p = e->streamState;
+		const char* st = p.state == kAooStreamStateActive ? "active"
+		               : p.state == kAooStreamStateBuffering ? "buffering" : "inactive";
+		o.Set("type", "streamState");
+		o.Set("endpoint", aoo_node_util::endpointToObject(env, p.endpoint));
+		o.Set("state", Napi::String::New(env, st));
+		break;
+	}
+	case kAooEventFormatChange: {
+		auto& p = e->formatChange;
+		o.Set("type", "formatChange");
+		o.Set("endpoint", aoo_node_util::endpointToObject(env, p.endpoint));
+		if (p.format) {
+			o.Set("codec", Napi::String::New(env, p.format->codecName));
+			o.Set("channels", Napi::Number::New(env, p.format->numChannels));
+			o.Set("sampleRate", Napi::Number::New(env, p.format->sampleRate));
+			o.Set("blockSize", Napi::Number::New(env, p.format->blockSize));
+		}
+		break;
+	}
+	default:
+		o.Set("type", Napi::Number::New(env, (double)e->type));
+		break;
+	}
+	self->pollCtx_->arr.Set(self->pollCtx_->n++, o);
 }
