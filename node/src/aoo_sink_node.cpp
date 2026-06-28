@@ -1,5 +1,6 @@
 #include "aoo_sink_node.hpp"
 #include "aoo.h"
+#include "aoo_client_node.hpp"
 #include "aoo_types.h"
 #include "utils_node.hpp"
 
@@ -11,7 +12,8 @@ void AooSinkWrap::Register(Napi::Env env, Napi::Object exports)
 		InstanceMethod("handleMessage", &AooSinkWrap::HandleMessage),
 		InstanceMethod("process",       &AooSinkWrap::Process),
 		InstanceMethod("send",          &AooSinkWrap::Send),
-		InstanceMethod("pollEvents",    &AooSinkWrap::PollEvents)
+		InstanceMethod("pollEvents",    &AooSinkWrap::PollEvents),
+		InstanceMethod("inviteSource", &AooSinkWrap::InviteSource)
 	});
 	exports.Set("AooSink", func);
 }
@@ -98,6 +100,23 @@ AooInt32 AOO_CALL AooSinkWrap::SendTrampoline(void* user, const AooByte* data, A
 		Napi::Number::New(env, port)
 	});
 	return size;
+}
+
+Napi::Value AooSinkWrap::InviteSource(const Napi::CallbackInfo& info)
+{
+	Napi::Object ep = info[0].As<Napi::Object>();
+	std::string ip = ep.Get("ip").As<Napi::String>().Utf8Value();
+	AooUInt16 port = (AooUInt16)ep.Get("port").As<Napi::Number>().Uint32Value();
+	AooId id = ep.Get("id").As<Napi::Number>().Uint32Value();
+	AooSockAddrStorage addr;
+	AooAddrSize addrlen = sizeof(addr);
+	if(aoo_ipEndpointToSockAddr(ip.c_str(), port, kAooSocketDualStack, &addr, &addrlen) != kAooOk) {
+		Napi::Error::New(info.Env(), "inviteSouce: bad address").ThrowAsJavaScriptException();
+		return info.Env().Undefined();
+	}
+	AooEndpoint endpoint { &addr, addrlen, id};
+	sink_->inviteSource(endpoint, nullptr);
+	return info.Env().Undefined();
 }
 
 Napi::Value AooSinkWrap::PollEvents(const Napi::CallbackInfo& info) {

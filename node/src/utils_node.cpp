@@ -31,4 +31,19 @@ namespace aoo_node_util {
 
 	}
 
+	bool toSockAddr(const std::string& ip, AooUInt16 port, AooSockAddrStorage& storage, AooAddrSize& len) {
+		len = sizeof(AooSockAddrStorage);
+		return aoo_ipEndpointToSockAddr(ip.c_str(), port, kAooSocketDualStack, &storage, &len) == kAooOk;
+	}
+
+	bool toEndpoint(Napi::Object obj, AooSockAddrStorage& storage, AooEndpoint& ep) {
+		std::string ip = obj.Get("ip").As<Napi::String>().Utf8Value();
+		AooUInt16 port = (AooUInt16) obj.Get("port").As<Napi::Number>().Uint32Value();
+		AooId id       = obj.Get("id").As<Napi::Number>().Int32Value();
+		AooAddrSize len = 0;
+		if (!toSockAddr(ip, port, storage, len)) return false;
+		ep = AooEndpoint{ &storage, len, id };
+		return true;
+	}
+
 }

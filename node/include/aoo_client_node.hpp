@@ -36,6 +36,7 @@ private:
 	Napi::Value SendPacket(const Napi::CallbackInfo& info);
 
 	Napi::Value PollPackets(const Napi::CallbackInfo& info);
+	Napi::Value UserId(const Napi::CallbackInfo& info);
 
 	void startThreads(bool external);
 
@@ -68,6 +69,7 @@ private:
 	std::string host_;
 	std::string group_;
 	std::string user_;
+	std::atomic<AooId> userId_{kAooIdInvalid};
 
 	std::mutex inMutex_;
 	std::vector<InPacket> inQueue;

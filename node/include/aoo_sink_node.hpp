@@ -19,6 +19,8 @@ private:
 	Napi::Value Send(const Napi::CallbackInfo& info);
 	Napi::Value PollEvents(const Napi::CallbackInfo& info);
 
+	Napi::Value InviteSource(const Napi::CallbackInfo& info);
+
 	static AooInt32 AOO_CALL SendTrampoline(void* user, const AooByte* data, AooInt32 size, const void* address, AooAddrSize addrlen, AooFlag flags);
 	static void HandleEvent(void* user, const AooEvent* e, AooThreadLevel);
 

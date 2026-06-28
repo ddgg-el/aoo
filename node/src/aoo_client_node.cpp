@@ -32,7 +32,8 @@ void AooClientWrap::Register(Napi::Env env, Napi::Object exports)
 		InstanceMethod("join", &AooClientWrap::Join),
 		InstanceMethod("pollEvents", &AooClientWrap::PollEvents),
 		InstanceMethod("sendPacket", &AooClientWrap::SendPacket),
-		InstanceMethod("pollPackets", &AooClientWrap::PollPackets)
+		InstanceMethod("pollPackets", &AooClientWrap::PollPackets),
+		InstanceMethod("userId", &AooClientWrap::UserId)
 	});
 	exports.Set("AooClient", func);
 	
@@ -204,7 +205,9 @@ Napi::Value AooClientWrap::Join(const Napi::CallbackInfo& info)
 			jargs.groupName = self->group_.c_str();
 			jargs.userName  = self->user_.c_str();
 			self->client_->joinGroup(jargs,
-				[](void*, const AooRequest*, AooError r, const AooResponse*) {
+				[](void* user, const AooRequest*, AooError r, const AooResponse* resp) {
+					auto* self = static_cast<AooClientWrap*>(user);
+					if(r == kAooOk && resp) self->userId_.store(resp->groupJoin.userId);
 					printf("[client] joinGroup: %s\n", r == kAooOk ? "OK" : aoo_strerror(r));
 				}, self);
 		}, this);
@@ -281,6 +284,7 @@ void AooClientWrap::HandleEvent(void* user, const AooEvent* e, AooThreadLevel)
 	case kAooEventPeerJoin:
 	case kAooEventPeerLeave: {
 		auto* p = reinterpret_cast<const AooEventPeer*>(e);
+		AooEndpoint peerEp { p->address.data, p->address.size, p->userId};
 		char ipbuf[64];
 		AooSize ipsize = sizeof(ipbuf);
 		AooUInt16 port = 0;
@@ -288,9 +292,10 @@ void AooClientWrap::HandleEvent(void* user, const AooEvent* e, AooThreadLevel)
 		o.Set("type", e->type == kAooEventPeerJoin ? "peerJoin" : "peerLeave");
 		o.Set("group", Napi::String::New(env, p->groupName));
 		o.Set("user", Napi::String::New(env, p->userName));
-		o.Set("ip", Napi::String::New(env, std::string(ipbuf,ipsize)));
-		o.Set("port", Napi::Number::New(env, port));
-		o.Set("userId", Napi::Number::New(env, p->userId));
+		o.Set("endpoint", aoo_node_util::endpointToObject(env, peerEp));
+		// o.Set("ip", Napi::String::New(env, std::string(ipbuf,ipsize)));
+		// o.Set("port", Napi::Number::New(env, port));
+		// o.Set("userId", Napi::Number::New(env, p->userId));
 		break;
 	}
 	case kAooEventDisconnect:
@@ -315,4 +320,9 @@ void AooClientWrap::stopThreads()
 	if(receive_thread_.joinable()) receive_thread_.join();
 
 	udp_server_.reset();
+}
+
+Napi::Value AooClientWrap::UserId(const Napi::CallbackInfo& info) {
+	AooId id = userId_.load();
+	return Napi::Number::New(info.Env(), id == kAooIdInvalid ? -1 : id);
 }

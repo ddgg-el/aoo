@@ -4,7 +4,10 @@
 #include "aoo_defines.h"
 #include "aoo_events.h"
 #include "aoo_types.h"
+#include "codec/aoo_opus.h"
 #include "codec/aoo_pcm.h"
+#include "opus_defines.h"
+#include "opus_types.h"
 #include "utils_node.hpp"
 #include <cstddef>
 
@@ -19,7 +22,13 @@ void AooSourceWrap::Register(Napi::Env env, Napi::Object exports)
 		InstanceMethod("process", &AooSourceWrap::Process),
 		InstanceMethod("send", &AooSourceWrap::Send),
 		InstanceMethod("pollEvents", &AooSourceWrap::PollEvents),
-		InstanceMethod("removeSink", &AooSourceWrap::RemoveSink)
+		InstanceMethod("removeSink", &AooSourceWrap::RemoveSink),
+		InstanceMethod("handleInvite", &AooSourceWrap::HandleInvite),
+		InstanceMethod("handleUninvite", &AooSourceWrap::HandleUninvite),
+
+		InstanceMethod("setOpusBitrate", &AooSourceWrap::SetOpusBitrate),
+		InstanceMethod("setOpusComplexity", &AooSourceWrap::SetOpusComplexity),
+		InstanceMethod("setOpusSignalType", &AooSourceWrap::SetOpusSignalType),
 
 	});
 	exports.Set("AooSource", func);
@@ -44,15 +53,51 @@ Napi::Value AooSourceWrap::Setup(const Napi::CallbackInfo& info)
 	return info.Env().Undefined();
 }
 
-Napi::Value AooSourceWrap::SetFormat(const Napi::CallbackInfo& info)
-{
-	AooFormatPcm fmt;
-	AooFormatPcm_init(&fmt, channels_, sampleRate_, blockSize_, kAooPcmFloat32);
-	AooError err = source_->setFormat(fmt.header);
-	if(err != kAooOk) {
-		Napi::Error::New(info.Env(), std::string("setFormat: ") + aoo_strerror(err)).ThrowAsJavaScriptException();
+Napi::Value AooSourceWrap::SetFormat(const Napi::CallbackInfo& info) {
+	Napi::Env env = info.Env();
+	std::string codec = "pcm";
+	Napi::Object fmt;
+	bool hasFmt = info.Length() > 0 && info[0].IsObject();
+	if (hasFmt) {
+		fmt = info[0].As<Napi::Object>();
+		if (fmt.Has("codec")) codec = fmt.Get("codec").As<Napi::String>().Utf8Value();
 	}
-	return info.Env().Undefined();
+
+	AooError err;
+	if (codec == "opus") {
+		opus_int32 app = OPUS_APPLICATION_AUDIO;
+		if (hasFmt && fmt.Has("application")) {
+			std::string a = fmt.Get("application").As<Napi::String>().Utf8Value();
+			if      (a == "lowdelay") app = OPUS_APPLICATION_RESTRICTED_LOWDELAY;
+			else if (a == "voip")     app = OPUS_APPLICATION_VOIP;
+		}
+		int blockSize = (hasFmt && fmt.Has("blockSize"))
+			? fmt.Get("blockSize").As<Napi::Number>().Int32Value() : 480;
+
+		AooFormatOpus of;
+		AooFormatOpus_init(&of, channels_, 48000, blockSize, app);  // Opus rate = 48 kHz
+		err = source_->setFormat(of.header);
+
+		if (err == kAooOk && hasFmt) {                              // optional live tweaks
+			if (fmt.Has("bitrate")) {
+				opus_int32 v = fmt.Get("bitrate").As<Napi::Number>().Int32Value();
+				source_->codecControl(kAooCodecOpus, OPUS_SET_BITRATE_REQUEST, 0, &v, sizeof(v));
+			}
+			if (fmt.Has("complexity")) {
+				opus_int32 v = fmt.Get("complexity").As<Napi::Number>().Int32Value();
+				source_->codecControl(kAooCodecOpus, OPUS_SET_COMPLEXITY_REQUEST, 0, &v, sizeof(v));
+			}
+		}
+	} else {
+		AooFormatPcm pf;
+		AooFormatPcm_init(&pf, channels_, sampleRate_, blockSize_, kAooPcmFloat32);
+		err = source_->setFormat(pf.header);
+	}
+
+	if (err != kAooOk)
+		Napi::Error::New(env, std::string("setFormat: ") + aoo_strerror(err))
+			.ThrowAsJavaScriptException();
+	return env.Undefined();
 }
 
 Napi::Value AooSourceWrap::AddSink(const Napi::CallbackInfo& info)
@@ -192,5 +237,56 @@ Napi::Value AooSourceWrap::RemoveSink(const Napi::CallbackInfo& info)
 	}
 	AooEndpoint endpoint { &addr, addrlen, id };
 	source_->removeSink(endpoint);
+	return info.Env().Undefined();
+}
+
+Napi::Value AooSourceWrap::HandleInvite(const Napi::CallbackInfo& info)
+{
+	Napi::Object ep = info[0].As<Napi::Object>();
+	std::string ip = ep.Get("ip").As<Napi::String>().Utf8Value();
+	AooUInt16 port = (AooUInt16) ep.Get("port").As<Napi::Number>().Uint32Value();
+	AooId id       = ep.Get("id").As<Napi::Number>().Int32Value();
+	AooId token    = info[1].As<Napi::Number>().Int32Value();
+	bool  accept   = info[2].As<Napi::Boolean>().Value();
+	AooSockAddrStorage addr; AooAddrSize addrlen = sizeof(addr);
+	if (aoo_ipEndpointToSockAddr(ip.c_str(), port, kAooSocketDualStack, &addr, &addrlen) != kAooOk) {
+		Napi::Error::New(info.Env(), "handleInvite: bad address").ThrowAsJavaScriptException();
+		return info.Env().Undefined();
+	}
+	AooEndpoint endpoint { &addr, addrlen, id };
+	source_->handleInvite(endpoint, token, accept ? kAooTrue : kAooFalse);
+	return info.Env().Undefined();
+}
+
+Napi::Value AooSourceWrap::HandleUninvite(const Napi::CallbackInfo& info)
+{
+	AooSockAddrStorage addr;
+	AooEndpoint ep;
+	if(!aoo_node_util::toEndpoint(info[0].As<Napi::Object>(), addr, ep)) {
+		Napi::Error::New(info.Env(), "handleUninvite: bad address").ThrowAsJavaScriptException();
+		return info.Env().Undefined();
+	}
+	AooId token = info[1].As<Napi::Number>().Int32Value();
+	bool accept = info[2].As<Napi::Boolean>().Value();
+	source_->handleUninvite(ep, token, accept ? kAooTrue : kAooFalse);
+	return info.Env().Undefined();
+
+}
+
+Napi::Value AooSourceWrap::SetOpusBitrate(const Napi::CallbackInfo& info) {
+	opus_int32 v = info[0].As<Napi::Number>().Int32Value();
+	source_->codecControl(kAooCodecOpus, OPUS_SET_BITRATE_REQUEST, 0, &v, sizeof(v));
+	return info.Env().Undefined();
+}
+Napi::Value AooSourceWrap::SetOpusComplexity(const Napi::CallbackInfo& info) {
+	opus_int32 v = info[0].As<Napi::Number>().Int32Value();
+	source_->codecControl(kAooCodecOpus, OPUS_SET_COMPLEXITY_REQUEST, 0, &v, sizeof(v));
+	return info.Env().Undefined();
+}
+Napi::Value AooSourceWrap::SetOpusSignalType(const Napi::CallbackInfo& info) {
+	std::string s = info[0].As<Napi::String>().Utf8Value();
+	opus_int32 sig = (s == "voice") ? OPUS_SIGNAL_VOICE
+	               : (s == "music") ? OPUS_SIGNAL_MUSIC : OPUS_AUTO;
+	source_->codecControl(kAooCodecOpus, OPUS_SET_SIGNAL_REQUEST, 0, &sig, sizeof(sig));
 	return info.Env().Undefined();
 }

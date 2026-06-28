@@ -1,5 +1,9 @@
+export type AooFormat = 
+  | { codec: "pcm" }
+  | { codec: "opus"; application?:'audio' | 'lowdelay' | "voip"; blockSize?: number; bitrate?: number; complexity?: number } 
 export type AooClientEvent =
-  | { type: "peerJoin" | "peerLeave"; group: string; user: string; ip: string; port: number; userId: number }
+  // | { type: "peerJoin" | "peerLeave"; group: string; user: string; ip: string; port: number; userId: number }
+  | { type: "peerJoin" | "peerLeave"; group: string; user: string; endpoint: AooEndpoint }
   | { type: "disconnect" }
   | { type: number } // numeric AOO event types not yet marshalled
 
@@ -38,21 +42,26 @@ export class AooClient {
   pollEvents(): AooClientEvent[]
   /** Send a raw UDP packet out the client's socket to a numeric ip:port. */
   sendPacket(bytes: Uint8Array, ip: string, port: number): void
-
   pollPackets(): { bytes: Uint8Array; ip: string; port: number }[]
+  userId(): number
 }
 
 export class AooSource {
   constructor(id:number)
   setup(numChannels:number, sampleRate:number, blockSize:number)
-  setFormat(): void
+  send(cb:(bytes:Uint8Array, ip:string, port:number) => void): void
+  setFormat(format?: AooFormat): void
+  setOpusBitrate(bitrate: number): void
+  setOpusComplexity(complexity: number): void
+  setOpusSignalType(signal: "music" | "voice" | "auto"):void
   addSink(endpoint:AooEndpoint): void
   startStream(): void
   stopStream(): void
   process(samples:Float32Array): void
-  send(cb:(bytes:Uint8Array, ip:string, port:number) => void): void
-  pollEvents(): AooSourceEvent[]
   removeSink(endpoint:AooEndpoint): void
+  pollEvents(): AooSourceEvent[]
+  handleInvite(endpoint:AooEndpoint, token:number, accept:boolean)
+  handleUninvite(endpoint:AooEndpoint, token:number, accept:boolean)
 }
 
 export class AooSink {
@@ -63,6 +72,7 @@ export class AooSink {
   process(): Float32Array
   send(cb: (bytes: Uint8Array, ip: string, port: number) => void): void
   pollEvents(): AooSinkEvent[]
+  inviteSource(endpoint:AooEndpoint): void
 }
 
 export function aoo_version(): string

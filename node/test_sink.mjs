@@ -4,11 +4,16 @@ import { AooClient, AooSink } from "aoo-native";
 
 const SAMPLE_RATE= 48000
 const BLOCK_SIZE = 256;
-const PORT = 10000
+const SERVER_ADDR = {ip: "localhost", port: 7078}
+const GROUP = "test-group"
+const USER = "node-" + process.pid
+
 // const SOURCE_ADDR = { ip: "127.0.0.1", port: 9999 }
 
 const client = new AooClient()
-client.start(PORT)
+client.start(0)
+client.join(SERVER_ADDR.ip, SERVER_ADDR.port, GROUP, USER)
+console.log(`joined "${GROUP}" as ${USER}`)
 
 const sink = new AooSink(1)
 sink.setup(1, SAMPLE_RATE, BLOCK_SIZE)
@@ -30,4 +35,11 @@ setInterval(() => {
 	rxPeak = 0
 }, 1000)
 
-setInterval(() => { for (const ev of sink.pollEvents()) console.log("sink event:", ev) }, 200)
+setInterval(() => { 
+	for (const ev of client.pollEvents()) {
+		if(ev.type === "peerJoin") {
+			sink.inviteSource({ip: ev.endpoint.ip, port: ev.endpoint.port, id:1})
+		}
+		console.log("sink event:", ev.type) 
+	}
+}, 200)
