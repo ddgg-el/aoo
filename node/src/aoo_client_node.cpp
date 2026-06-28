@@ -1,11 +1,21 @@
 #include "aoo_client_node.hpp"
 #include "aoo.h"
+#include "aoo_client.hpp"
+#include "aoo_defines.h"
 #include "aoo_events.h"
+#include "aoo_sink_node.hpp"
+#include "aoo_source_node.hpp"
 #include "aoo_types.h"
+#include "common/net_utils.hpp"
+#include "net/udp_server.hpp"
 #include "utils_node.hpp"
 #include <cstdint>
 #include <cstdio>
+#include <exception>
+#include <mutex>
 #include <string>
+#include <sys/socket.h>
+#include <vector>
 
 
 
@@ -14,10 +24,15 @@ void AooClientWrap::Register(Napi::Env env, Napi::Object exports)
 	Napi::Function func = DefineClass(env, "AooClient", {
 		InstanceMethod("start", &AooClientWrap::Start),
 		InstanceMethod("stop", &AooClientWrap::Stop),
+		InstanceMethod("addSource", &AooClientWrap::AddSource),
+		InstanceMethod("addSink", &AooClientWrap::AddSink),
+		InstanceMethod("notify", &AooClientWrap::Notify),
 		InstanceMethod("connect", &AooClientWrap::Connect),
 		InstanceMethod("joinGroup", &AooClientWrap::JoinGroup),
+		InstanceMethod("join", &AooClientWrap::Join),
 		InstanceMethod("pollEvents", &AooClientWrap::PollEvents),
-		InstanceMethod("sendPacket", &AooClientWrap::SendPacket)
+		InstanceMethod("sendPacket", &AooClientWrap::SendPacket),
+		InstanceMethod("pollPackets", &AooClientWrap::PollPackets)
 	});
 	exports.Set("AooClient", func);
 	
@@ -39,21 +54,74 @@ AooClientWrap::~AooClientWrap()
 Napi::Value AooClientWrap::Start(const Napi::CallbackInfo& info) 
 {
 	Napi::Env env = info.Env();
+	int port = info[0].As<Napi::Number>().Int32Value();
+	bool external = info.Length() > 1 && info[1].As<Napi::Boolean>().Value();
+	return external ? StartExternal(info.Env(), port) 
+					: StartInternal(info.Env(), port);
+}
+
+Napi::Value AooClientWrap::StartInternal(Napi::Env env, int port)
+{
 	AooClientSettings settings;
-	settings.portNumber = info[0].As<Napi::Number>().Int32Value();
+	settings.portNumber = port;
 
 	AooError err = client_->setup(settings);
 	if(err != kAooOk) {
-		Napi::Error::New(env, std::string("setup failed: ") + aoo_strerror(err))
-		.ThrowAsJavaScriptException();
+		Napi::Error::New(env, std::string("setup failed: ") + aoo_strerror(err)).ThrowAsJavaScriptException();
+		return env.Undefined();
+	}
+
+	running_ = true;
+	send_thread_    = std::thread([this]() { client_->send(kAooInfinite); });
+	run_thread_     = std::thread([this]() { client_->run(kAooInfinite); });
+	receive_thread_ = std::thread([this]() { client_->receive(kAooInfinite); });
+
+	return Napi::Number::New(env, settings.portNumber);
+}
+
+Napi::Value AooClientWrap::StartExternal(Napi::Env env, int port)
+{
+	udp_server_ = std::make_unique<aoo::udp_server>();
+	try {
+		udp_server_->start(port, [this](const AooByte* data, AooSize size, const aoo::ip_address& addr) {
+			AooMsgType type;
+			AooId id;
+			AooInt32 offset;
+			bool isAudio = (aoo_parsePattern(data, size, &type, &id, &offset) == kAooOk) && (type == kAooMsgTypeSource || type == kAooMsgTypeSink);
+			if(isAudio) {
+				std::lock_guard<std::mutex> lock(inMutex_);
+				inQueue.push_back({std::vector<AooByte>(data, data+size), std::string(addr.name()), (uint16_t)addr.port()});
+			} else {
+				client_->handlePacket(data, size, addr.address(), addr.length());
+			}
+		});
+	} catch (const std::exception& e) {
+		Napi::Error::New(env, std::string("udp_server start failed: ") + e.what()).ThrowAsJavaScriptException();
+		return env.Undefined();
+	}
+	AooClientSettings settings;
+	settings.portNumber = udp_server_->port();
+	settings.socketType = kAooSocketDualStack;
+	settings.options = kAooClientExternalUDPSocket;
+	settings.userData = this;
+	settings.sendFunc = &AooClientWrap::SendFunc;
+
+	AooError err = client_->setup(settings);
+	if(err != kAooOk) {
+		Napi::Error::New(env, std::string("setup failed: ") + aoo_strerror(err)).ThrowAsJavaScriptException();
 		return env.Undefined();
 	}
 	running_ = true;
 	send_thread_ = std::thread([this]() { client_->send(kAooInfinite); });
-	receive_thread_ = std::thread([this]() {client_->receive(kAooInfinite); });
 	run_thread_ = std::thread([this]() {client_->run(kAooInfinite); });
+	receive_thread_ = std::thread([this]() {udp_server_->run(-1); });
 
 	return Napi::Number::New(env,settings.portNumber);
+}
+
+void AooClientWrap::startThreads(bool external)
+{
+	
 }
 
 Napi::Value AooClientWrap::Stop(const Napi::CallbackInfo& info) 
@@ -61,6 +129,28 @@ Napi::Value AooClientWrap::Stop(const Napi::CallbackInfo& info)
 	stopThreads();
 	return info.Env().Undefined();
 }
+
+Napi::Value AooClientWrap::AddSink(const Napi::CallbackInfo& info)
+{
+	auto* sink = AooSinkWrap::Unwrap(info[0].As<Napi::Object>());
+	client_->addSink(sink->native());
+	return info.Env().Undefined();
+}
+
+Napi::Value AooClientWrap::AddSource(const Napi::CallbackInfo& info)
+{
+	auto* src =AooSourceWrap::Unwrap(info[0].As<Napi::Object>());
+	client_->addSource(src->native());
+	return info.Env().Undefined();
+}
+
+Napi::Value AooClientWrap::Notify(const Napi::CallbackInfo& info)
+{
+	client_->notify();
+	return info.Env().Undefined();
+}
+
+
 
 Napi::Value AooClientWrap::Connect(const Napi::CallbackInfo& info) {
 	host_ = info[0].As<Napi::String>().Utf8Value();
@@ -88,6 +178,37 @@ Napi::Value AooClientWrap::JoinGroup(const Napi::CallbackInfo& info) {
 		[](void*, const AooRequest*, AooError result, const AooResponse*) {
 			printf("[client] joinGroup: %s\n", result == kAooOk ? "OK" : aoo_strerror(result));
 	}, this);
+	return info.Env().Undefined();
+}
+
+Napi::Value AooClientWrap::Join(const Napi::CallbackInfo& info)
+{
+	host_  = info[0].As<Napi::String>().Utf8Value();
+	int port = info[1].As<Napi::Number>().Int32Value();
+	group_ = info[2].As<Napi::String>().Utf8Value();
+	user_  = info[3].As<Napi::String>().Utf8Value();
+
+	AooClientConnect args;
+	args.hostName = host_.c_str();
+	args.port = (AooUInt16)port;
+
+	client_->connect(args,
+		[](void* user, const AooRequest*, AooError result, const AooResponse*) {
+			auto* self = static_cast<AooClientWrap*>(user);
+			if (result != kAooOk) {
+				printf("[client] connect failed: %s\n", aoo_strerror(result));
+				return;
+			}
+			self->connected_.store(true);
+			AooClientJoinGroup jargs;
+			jargs.groupName = self->group_.c_str();
+			jargs.userName  = self->user_.c_str();
+			self->client_->joinGroup(jargs,
+				[](void*, const AooRequest*, AooError r, const AooResponse*) {
+					printf("[client] joinGroup: %s\n", r == kAooOk ? "OK" : aoo_strerror(r));
+				}, self);
+		}, this);
+
 	return info.Env().Undefined();
 }
 
@@ -119,6 +240,33 @@ Napi::Value AooClientWrap::SendPacket(const Napi::CallbackInfo& info) {
 
 	client_->sendPacket((const AooByte*)bytes.Data(), (AooInt32) bytes.Length(), &addr, addrlen);
 	return env.Undefined();
+}
+
+Napi::Value AooClientWrap::PollPackets(const Napi::CallbackInfo& info) {
+	Napi::Env env = info.Env();
+	std::vector<InPacket> packets;
+	{
+		std::lock_guard<std::mutex> lock(inMutex_);
+		packets.swap(inQueue);
+	}
+
+	Napi::Array arr = Napi::Array::New(env, packets.size());
+	for (uint32_t i = 0; i < packets.size(); ++i) {	
+		auto& p = packets[i];
+		Napi::Object o = Napi::Object::New(env);
+		o.Set("bytes", Napi::Buffer<uint8_t>::Copy(env, p.data.data(), p.data.size()));
+		o.Set("ip", Napi::String::New(env, p.ip));
+		o.Set("port", Napi::Number::New(env, p.port));
+		arr.Set(i, o);
+	}
+	return arr;
+}
+
+AooInt32 AOO_CALL AooClientWrap::SendFunc(void* user, const AooByte* data, AooInt32 size, const void* address, AooAddrSize addrlen, AooFlag) {
+	auto* self = static_cast<AooClientWrap*>(user);
+	if(!self->udp_server_) return 0;
+	aoo::ip_address addr((const struct sockaddr*) address, (socklen_t)addrlen);
+	return self->udp_server_->send(addr, data, size);
 }
 
 void AooClientWrap::HandleEvent(void* user, const AooEvent* e, AooThreadLevel)
@@ -159,9 +307,12 @@ void AooClientWrap::stopThreads()
 {
 	if(!running_) return;
 	running_ = false;
+	if(udp_server_) udp_server_->stop();
 	client_->stop();
 
 	if(send_thread_.joinable()) send_thread_.join();
-	if(receive_thread_.joinable()) receive_thread_.join();
 	if(run_thread_.joinable()) run_thread_.join();
+	if(receive_thread_.joinable()) receive_thread_.join();
+
+	udp_server_.reset();
 }

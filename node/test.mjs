@@ -1,10 +1,7 @@
 // @ts-check
-import { createRequire } from "module"
-const require = createRequire(import.meta.url)
-const aoo = require("./build/Release/aoo_native.node")
+import aoo from "aoo-native"
 
-
-console.log("AOO native version:", aoo.version())
+console.log("AOO native version:", aoo.aoo_version())
 
 const client = new aoo.AooClient()
 console.log("client up on port", client.start(0))

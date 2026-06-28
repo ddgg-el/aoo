@@ -1,18 +1,33 @@
 {
-	"name": "aoo-native",
-	"version": "0.0.1",
-	"type": "module",
-	"scripts": {
-		"build": "cmake-js -G \"Unix Makefiles\" compile",
-		"build-debug": "cmake-js -G \"Unix Makefiles\" -DCMAKE_BUILD_TYPE=\"Debug\" compile",
-		"rebuild": "cmake-js -G \"Unix Makefiles\" rebuild",
-		"rebuild-debug": "cmake-js -G \"Unix Makefiles\" -DCMAKE_BUILD_TYPE=\"Debug\" rebuild",
-		"test": "node test.mjs"
-	},
-	"devDependencies": {
-		"cmake-js": "^8.0.0"
-	},
-	"dependencies": {
-		"node-addon-api": "^8.8.0"
-	}
+  "name": "aoo-native",
+  "version": "0.0.1",
+  "type": "module",
+  "main": "index.mjs",
+  "types": "index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./index.mjs"
+    }
+  },
+  "files": [
+    "index.mjs",
+    "index.d.ts",
+    "src",
+    "include",
+    "CMakeLists.txt",
+    "build/Release/aoo_native.node"
+  ],
+  "scripts": {
+    "build": "cmake-js -G \"Unix Makefiles\" compile",
+    "build-debug": "cmake-js -G \"Unix Makefiles\" -DCMAKE_BUILD_TYPE=\"Debug\" compile",
+    "rebuild": "cmake-js -G \"Unix Makefiles\" rebuild",
+    "rebuild-debug": "cmake-js -G \"Unix Makefiles\" -DCMAKE_BUILD_TYPE=\"Debug\" rebuild",
+    "test": "node test.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^26.0.1",
+    "cmake-js": "^8.0.0",
+    "node-addon-api": "^8.8.0"
+  }
 }

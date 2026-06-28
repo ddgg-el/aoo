@@ -12,7 +12,7 @@ namespace {
 namespace aoo_node_util {
 
 	void Register(Napi::Env env, Napi::Object exports) {
-		exports.Set("version", Napi::Function::New(env, Version));
+		exports.Set("aoo_version", Napi::Function::New(env, Version));
 	}
 
 }

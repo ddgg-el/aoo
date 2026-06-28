@@ -13,6 +13,8 @@ add_library(${PROJECT_NAME} SHARED
 	src/addon.cpp 
 	src/utils_node.cpp
 	src/aoo_client_node.cpp
+	src/aoo_source_node.cpp
+	src/aoo_sink_node.cpp
 	${CMAKE_JS_SOURCE}
 )
 set_target_properties(${PROJECT_NAME} PROPERTIES PREFIX "" SUFFIX ".node")
@@ -20,8 +22,10 @@ set_target_properties(${PROJECT_NAME} PROPERTIES PREFIX "" SUFFIX ".node")
 target_include_directories(${PROJECT_NAME} PRIVATE
 	${CMAKE_JS_INC}
 	"${CMAKE_CURRENT_SOURCE_DIR}/include"
+	"${CMAKE_CURRENT_SOURCE_DIR}/.."
 	"${CMAKE_CURRENT_SOURCE_DIR}/../include"
+	"${CMAKE_CURRENT_SOURCE_DIR}/../aoo/src"
 	"${CMAKE_CURRENT_SOURCE_DIR}/node_modules/node-addon-api"
 )
 target_link_libraries(${PROJECT_NAME} PRIVATE ${CMAKE_JS_LIB} Aoo::aoo)
-target_compile_definitions(${PROJECT_NAME} PRIVATE NAPI_CPP_EXCETIONS)
+target_compile_definitions(${PROJECT_NAME} PRIVATE NAPI_CPP_EXCEPTIONS)
