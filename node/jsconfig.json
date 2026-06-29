@@ -8,5 +8,5 @@
     "noEmit": true,
     "skipLibCheck": true
   },
-  "include": ["*.mjs", "index.d.ts"]
+  "include": ["*.mjs", "index.d.ts", "test/**/*.mjs"]
 }

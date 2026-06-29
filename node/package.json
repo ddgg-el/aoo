@@ -23,7 +23,7 @@
     "build-debug": "cmake-js -G \"Unix Makefiles\" -DCMAKE_BUILD_TYPE=\"Debug\" compile",
     "rebuild": "cmake-js -G \"Unix Makefiles\" rebuild",
     "rebuild-debug": "cmake-js -G \"Unix Makefiles\" -DCMAKE_BUILD_TYPE=\"Debug\" rebuild",
-    "test": "node test.mjs"
+    "test": "node --test"
   },
   "devDependencies": {
     "@types/node": "^26.0.1",
