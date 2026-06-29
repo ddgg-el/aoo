@@ -187,7 +187,7 @@ void AooSourceWrap::HandleEvent(void* user, const AooEvent* e, AooThreadLevel)
 		o.Set("token", Napi::Number::New(env, e->uninvite.token));
 		break;
 	default:
-		o.Set("type", Napi::Number::New(env, (double)e->type));
+		o.Set("type", Napi::String::New(env, aoo_node_util::eventTypeName(e->type)));
 		break;
 	}
 	self->pollCtx_->arr.Set(self->pollCtx_->n++, o);

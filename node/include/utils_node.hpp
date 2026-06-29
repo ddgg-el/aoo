@@ -1,5 +1,6 @@
 #pragma once
 #include "aoo.h"
+#include "aoo_events.h"
 #include "aoo_types.h"
 #include <napi.h>
 
@@ -10,4 +11,5 @@ namespace aoo_node_util {
 	Napi::Object endpointToObject(Napi::Env env, const AooEndpoint& ep);
 	bool toSocketAddr(const std::string& ip, AooUInt16 port, AooSockAddrStorage& storage, AooAddrSize& len);
 	bool toEndpoint(Napi::Object obj, AooSockAddrStorage& storage, AooEndpoint& ep);
+	const char* eventTypeName(AooEventType t);
 }

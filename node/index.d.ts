@@ -4,6 +4,7 @@ export type AooFormat =
 export type AooClientEvent =
   // | { type: "peerJoin" | "peerLeave"; group: string; user: string; ip: string; port: number; userId: number }
   | { type: "peerJoin" | "peerLeave"; group: string; user: string; endpoint: AooEndpoint }
+  | { type: "peerMessage"; group: number; user: string; userId:number; msgType: number; data: Uint8Array }
   | { type: "disconnect" }
   | { type: number } // numeric AOO event types not yet marshalled
 
@@ -152,13 +153,14 @@ export class AooClient {
   connect(host: string, port: number): void
   joinGroup(group: string, user: string): void
   join(server: string, port: number, group: string, user: string): void
+  sendMessage(user: number|string, msg: { type:number; data: Uint8Array}, reliable?:boolean): void
   /** Drain pending events; call on a timer. */
   pollEvents(): AooClientEvent[]
   /** Send a raw UDP packet out the client's socket to a numeric ip:port. */
   sendPacket(bytes: Uint8Array, ip: string, port: number): void
   pollPackets(): { bytes: Uint8Array; ip: string; port: number }[]
   userId(): number
-
+  groupId(): number
   removeSource(source: AooSource): void
   removeSink(sink: AooSink): void
 }

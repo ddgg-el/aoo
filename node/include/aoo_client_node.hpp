@@ -6,6 +6,7 @@
 #include <napi.h>
 #include <string>
 #include <thread>
+#include <unordered_map>
 #include <vector>
 #include "aoo_client.hpp"
 #include "aoo_types.h"
@@ -37,6 +38,8 @@ private:
 
 	Napi::Value PollPackets(const Napi::CallbackInfo& info);
 	Napi::Value UserId(const Napi::CallbackInfo& info);
+	Napi::Value GroupId(const Napi::CallbackInfo& info);
+	Napi::Value SendMessage(const Napi::CallbackInfo& info);
 
 	Napi::Value RemoveSource(const Napi::CallbackInfo& info); 
 	Napi::Value RemoveSink(const Napi::CallbackInfo& info);
@@ -73,6 +76,9 @@ private:
 	std::string group_;
 	std::string user_;
 	std::atomic<AooId> userId_{kAooIdInvalid};
+	std::atomic<AooId> groupId_{ kAooIdInvalid };
+	std::unordered_map<std::string, AooId> peerIds_;
+	std::unordered_map<AooId, std::string> peerNames_;
 
 	std::mutex inMutex_;
 	std::vector<InPacket> inQueue;

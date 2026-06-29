@@ -34,7 +34,9 @@ void AooClientWrap::Register(Napi::Env env, Napi::Object exports)
 		InstanceMethod("pollEvents", &AooClientWrap::PollEvents),
 		InstanceMethod("sendPacket", &AooClientWrap::SendPacket),
 		InstanceMethod("pollPackets", &AooClientWrap::PollPackets),
+		InstanceMethod("sendMessage", &AooClientWrap::SendMessage),
 		InstanceMethod("userId", &AooClientWrap::UserId),
+		InstanceMethod("groupId", &AooClientWrap::GroupId),
 		InstanceMethod("removeSource", &AooClientWrap::RemoveSource),
 		InstanceMethod("removeSink", &AooClientWrap::RemoveSink),
 	});
@@ -154,8 +156,6 @@ Napi::Value AooClientWrap::Notify(const Napi::CallbackInfo& info)
 	return info.Env().Undefined();
 }
 
-
-
 Napi::Value AooClientWrap::Connect(const Napi::CallbackInfo& info) 
 {
 	host_ = info[0].As<Napi::String>().Utf8Value();
@@ -212,7 +212,10 @@ Napi::Value AooClientWrap::Join(const Napi::CallbackInfo& info)
 			self->client_->joinGroup(jargs,
 				[](void* user, const AooRequest*, AooError r, const AooResponse* resp) {
 					auto* self = static_cast<AooClientWrap*>(user);
-					if(r == kAooOk && resp) self->userId_.store(resp->groupJoin.userId);
+					if(r == kAooOk && resp) {
+						self->userId_.store(resp->groupJoin.userId);
+						self->groupId_.store(resp->groupJoin.groupId);
+					}
 					printf("[client] joinGroup: %s\n", r == kAooOk ? "OK" : aoo_strerror(r));
 				}, self);
 		}, this);
@@ -280,6 +283,40 @@ AooInt32 AOO_CALL AooClientWrap::SendFunc(void* user, const AooByte* data, AooIn
 	return self->udp_server_->send(addr, data, size);
 }
 
+Napi::Value AooClientWrap::SendMessage(const Napi::CallbackInfo& info) 
+{
+	Napi::Env env = info.Env();
+	AooId user;
+	if(info[0].IsString()) {
+		std::string name = info[0].As<Napi::String>().Utf8Value();
+		auto it = peerIds_.find(name);
+		if(it == peerIds_.end()) {
+			Napi::Error::New(env, "sendMessage: unknown user '" + name + "'").ThrowAsJavaScriptException();
+			return env.Undefined();
+		}
+		user = it->second;
+	} else {
+		user = info[0].As<Napi::Number>().Int32Value();
+	}
+	Napi::Object m = info[1].As<Napi::Object>();
+	auto data = m.Get("data").As<Napi::Buffer<uint8_t>>();
+	bool reliable = info.Length() > 2 && info[2].As<Napi::Boolean>().Value();
+
+	AooData d {
+		(AooDataType) m.Get("type").As<Napi::Number>().Int32Value(),
+		(const AooByte*) data.Data(),
+		(AooSize) data.Length()
+	};
+	client_->sendMessage(groupId_.load(), user, d, 0, reliable ? kAooMessageReliable : 0);
+	return info.Env().Undefined();
+}
+
+Napi::Value AooClientWrap::GroupId(const Napi::CallbackInfo& info)
+{
+	AooId id = groupId_.load();
+	return Napi::Number::New(info.Env(), id == kAooIdInvalid ? -1 : id);
+}
+
 void AooClientWrap::HandleEvent(void* user, const AooEvent* e, AooThreadLevel)
 {
 	auto* self = static_cast<AooClientWrap*>(user);
@@ -292,6 +329,13 @@ void AooClientWrap::HandleEvent(void* user, const AooEvent* e, AooThreadLevel)
 	case kAooEventPeerJoin:
 	case kAooEventPeerLeave: {
 		auto* p = reinterpret_cast<const AooEventPeer*>(e);
+		if(e->type == kAooEventPeerJoin) {
+			self->peerIds_[p->userName] = p->userId;
+			self->peerNames_[p->userId] = p->userName;
+		} else {
+			self->peerIds_.erase(p->userName);
+			self->peerNames_.erase(p->userId);
+		}
 		AooEndpoint peerEp { p->address.data, p->address.size, p->userId};
 		char ipbuf[64];
 		AooSize ipsize = sizeof(ipbuf);
@@ -306,11 +350,23 @@ void AooClientWrap::HandleEvent(void* user, const AooEvent* e, AooThreadLevel)
 		// o.Set("userId", Napi::Number::New(env, p->userId));
 		break;
 	}
+	case kAooEventPeerMessage: {
+		auto& p = e->peerMessage;
+		auto it = self->peerNames_.find(p.userId);
+
+		o.Set("type", Napi::String::New(env, "peerMessage"));
+		o.Set("group", Napi::Number::New(env, p.groupId));
+		o.Set("userId", Napi::Number::New(env, p.userId));
+		o.Set("user", Napi::String::New(env, it != self->peerNames_.end() ? it->second : std::string()));
+		o.Set("msgType", Napi::Number::New(env, p.data.type));
+		o.Set("data", Napi::Buffer<uint8_t>::Copy(env, p.data.data, p.data.size));
+		break;
+	}
 	case kAooEventDisconnect:
 		o.Set("type", Napi::String::New(env, "disconnect"));
 		break;
 	default:
-		o.Set("type", Napi::Number::New(env, (double) e->type));
+		o.Set("type", Napi::String::New(env, aoo_node_util::eventTypeName(e->type)));
 		break;
 	}
 	self->pollCtx_->arr.Set(self->pollCtx_->n++, o);

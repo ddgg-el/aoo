@@ -50,16 +50,16 @@ setInterval(() => {
 	for (const ev of client.pollEvents()) {
 		switch (ev.type) {
 			case "peerJoin": 
-				console.log("User ", ev.endpoint,  "joined")
-				// src.addSink(ev.endpoint) 
+				console.log("User ", ev.user,  "joined")
 				break
 			case "peerLeave":
-				console.log("User ", ev.endpoint,  "leaved")
-				// src.removeSink(ev.endpoint)
+				console.log("User ", ev.user,  "leaved")
 				break
 			case "disconnect":
 				console.log("disconnected:", ev) 
 				break
+			case "peerMessage":
+				console.log("peer message from user", ev.user, ":", Buffer.from(ev.data).toString())
 			default:
 				break
 		}

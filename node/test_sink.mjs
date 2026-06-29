@@ -1,14 +1,11 @@
 // @ts-check
-import dgram from "node:dgram"
-import { AooClient, AooSink } from "aoo-native";
+import { AooClient, AooDataType, AooSink } from "aoo-native";
 
 const SAMPLE_RATE= 48000
 const BLOCK_SIZE = 256;
 const SERVER_ADDR = {ip: "localhost", port: 7078}
 const GROUP = "test-group"
 const USER = "node-" + process.pid
-
-// const SOURCE_ADDR = { ip: "127.0.0.1", port: 9999 }
 
 const client = new AooClient()
 client.start(0)
@@ -41,7 +38,9 @@ setInterval(() => {
 setInterval(() => { 
 	for (const ev of client.pollEvents()) {
 		if(ev.type === "peerJoin") {
+			console.log(ev)
 			sink.inviteSource({ip: ev.endpoint.ip, port: ev.endpoint.port, id:1})
+			client.sendMessage(ev.user, { type: AooDataType.text, data: Buffer.from(`Hello ${ev.user} from ${USER}!`) }, true)
 		}
 		console.log("sink event:", ev.type) 
 	}
