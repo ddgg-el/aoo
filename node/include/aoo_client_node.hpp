@@ -38,6 +38,9 @@ private:
 	Napi::Value PollPackets(const Napi::CallbackInfo& info);
 	Napi::Value UserId(const Napi::CallbackInfo& info);
 
+	Napi::Value RemoveSource(const Napi::CallbackInfo& info); 
+	Napi::Value RemoveSink(const Napi::CallbackInfo& info);
+
 	void startThreads(bool external);
 
 	static AooInt32 AOO_CALL SendFunc(void* user, const AooByte* data, AooInt32 size, const void* address, AooAddrSize addrlen, AooFlag flags);

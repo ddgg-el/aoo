@@ -2,6 +2,7 @@
 #include "aoo.h"
 #include "aoo_client.hpp"
 #include "aoo_defines.h"
+#include "aoo_endpoint_wrap.hpp"
 #include "aoo_events.h"
 #include "aoo_sink_node.hpp"
 #include "aoo_source_node.hpp"
@@ -33,7 +34,9 @@ void AooClientWrap::Register(Napi::Env env, Napi::Object exports)
 		InstanceMethod("pollEvents", &AooClientWrap::PollEvents),
 		InstanceMethod("sendPacket", &AooClientWrap::SendPacket),
 		InstanceMethod("pollPackets", &AooClientWrap::PollPackets),
-		InstanceMethod("userId", &AooClientWrap::UserId)
+		InstanceMethod("userId", &AooClientWrap::UserId),
+		InstanceMethod("removeSource", &AooClientWrap::RemoveSource),
+		InstanceMethod("removeSink", &AooClientWrap::RemoveSink),
 	});
 	exports.Set("AooClient", func);
 	
@@ -153,7 +156,8 @@ Napi::Value AooClientWrap::Notify(const Napi::CallbackInfo& info)
 
 
 
-Napi::Value AooClientWrap::Connect(const Napi::CallbackInfo& info) {
+Napi::Value AooClientWrap::Connect(const Napi::CallbackInfo& info) 
+{
 	host_ = info[0].As<Napi::String>().Utf8Value();
 	int32_t port = info[1].As<Napi::Number>().Int32Value();
 	AooClientConnect args;
@@ -168,7 +172,8 @@ Napi::Value AooClientWrap::Connect(const Napi::CallbackInfo& info) {
 	return info.Env().Undefined();
 }
 
-Napi::Value AooClientWrap::JoinGroup(const Napi::CallbackInfo& info) {
+Napi::Value AooClientWrap::JoinGroup(const Napi::CallbackInfo& info) 
+{
 	group_ = info[0].As<Napi::String>().Utf8Value();
 	user_ = info[1].As<Napi::String>().Utf8Value();
 	AooClientJoinGroup args;
@@ -226,7 +231,8 @@ Napi::Value AooClientWrap::PollEvents(const Napi::CallbackInfo& info)
 	return arr;
 }
 
-Napi::Value AooClientWrap::SendPacket(const Napi::CallbackInfo& info) {
+Napi::Value AooClientWrap::SendPacket(const Napi::CallbackInfo& info) 
+{
 	Napi::Env env = info.Env();
 
 	auto bytes = info[0].As<Napi::Buffer<uint8_t>>();
@@ -245,7 +251,8 @@ Napi::Value AooClientWrap::SendPacket(const Napi::CallbackInfo& info) {
 	return env.Undefined();
 }
 
-Napi::Value AooClientWrap::PollPackets(const Napi::CallbackInfo& info) {
+Napi::Value AooClientWrap::PollPackets(const Napi::CallbackInfo& info) 
+{
 	Napi::Env env = info.Env();
 	std::vector<InPacket> packets;
 	{
@@ -265,7 +272,8 @@ Napi::Value AooClientWrap::PollPackets(const Napi::CallbackInfo& info) {
 	return arr;
 }
 
-AooInt32 AOO_CALL AooClientWrap::SendFunc(void* user, const AooByte* data, AooInt32 size, const void* address, AooAddrSize addrlen, AooFlag) {
+AooInt32 AOO_CALL AooClientWrap::SendFunc(void* user, const AooByte* data, AooInt32 size, const void* address, AooAddrSize addrlen, AooFlag) 
+{
 	auto* self = static_cast<AooClientWrap*>(user);
 	if(!self->udp_server_) return 0;
 	aoo::ip_address addr((const struct sockaddr*) address, (socklen_t)addrlen);
@@ -322,7 +330,20 @@ void AooClientWrap::stopThreads()
 	udp_server_.reset();
 }
 
-Napi::Value AooClientWrap::UserId(const Napi::CallbackInfo& info) {
+Napi::Value AooClientWrap::UserId(const Napi::CallbackInfo& info) 
+{
 	AooId id = userId_.load();
 	return Napi::Number::New(info.Env(), id == kAooIdInvalid ? -1 : id);
+}
+
+Napi::Value AooClientWrap::RemoveSource(const Napi::CallbackInfo& info)
+{
+	client_->removeSource(AooSourceWrap::Unwrap(info[0].As<Napi::Object>())->native());
+	return info.Env().Undefined();
+}
+
+Napi::Value AooClientWrap::RemoveSink(const Napi::CallbackInfo& info)
+{
+	client_->removeSink(AooSinkWrap::Unwrap(info[0].As<Napi::Object>())->native());
+	return info.Env().Undefined();
 }

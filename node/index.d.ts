@@ -27,6 +27,120 @@ export type AooEndpoint = {
   id:number
 }
 
+export interface AooStreamMessage {
+  sampleOffset: number
+  channel: number
+  type: number
+  data: Uint8Array
+  source: AooEndpoint
+}
+
+export const AooResampleMethod: { hold: number; linear: number; cubic: number }
+export const AooMsgType: { source: number; sink: number }
+export const AooDataType: { raw: number; text: number; osc: number; midi: number; json: number }
+export const AooOpusApplication: { audio: number; lowdelay: number; voip: number }
+export const AooOpusSignalType: { music: number; voice: number; auto: number }
+
+
+export function aoo_strerror(code: number): string
+export function aoo_terminate(): void
+export function messageType(bytes: Uint8Array): number
+
+interface AooStreamEndpoint<E> {
+  setup(numChannels: number, sampleRate: number, blockSize: number): void
+  send(cb: (bytes: Uint8Array, ip: string, port: number) => void): void
+  handleMessage(bytes: Uint8Array, ip: string, port: number): void
+  pollEvents(): E[]
+  eventsAvailable(): boolean
+  reset(): void
+  setId(id: number): void
+  setBufferSize(seconds: number): void
+  setPacketSize(bytes: number): void
+  setPingInterval(seconds: number): void
+  setResampleMethod(method: number): void
+  setDynamicResampling(enabled: boolean): void
+  setBinaryFormat(enabled: boolean): void
+  setDllBandwidth(q: number): void
+  getRealSampleRate(): number
+}
+
+export class AooSource implements AooStreamEndpoint<AooSourceEvent> {
+  constructor(id:number)
+  setup(numChannels:number, sampleRate:number, blockSize:number)
+  send(cb:(bytes:Uint8Array, ip:string, port:number) => void): void
+  handleMessage(bytes: Uint8Array, ip: string, port: number): void
+  pollEvents(): AooSourceEvent[]
+  eventsAvailable(): boolean
+  reset(): void
+  setId(id: number): void
+  setBufferSize(seconds: number): void
+  setPacketSize(bytes: number): void
+  setPingInterval(seconds: number): void
+  setResampleMethod(method: number): void
+  setDynamicResampling(enabled: boolean): void
+  setBinaryFormat(enabled: boolean): void
+  setDllBandwidth(q: number): void
+  getRealSampleRate(): number
+
+  setRedundancy(n: number): void
+  setResendBufferSize(s: number): void
+  setStreamTimeSendInterval(s: number): void
+  removeAllSinks(): void
+  activate(endpoint:AooEndpoint, active:boolean): void
+  setSinkChannelOffset(endpoint:AooEndpoint, offset:number): void
+
+  setFormat(format?: AooFormat): void
+  setOpusBitrate(bitrate: number): void
+  setOpusComplexity(complexity: number): void
+  setOpusSignalType(signal: "music" | "voice" | "auto"):void
+
+  addSink(endpoint:AooEndpoint): void
+  startStream(): void
+  stopStream(): void
+  process(samples:Float32Array): void
+  removeSink(endpoint:AooEndpoint): void
+  handleInvite(endpoint:AooEndpoint, token:number, accept:boolean)
+  handleUninvite(endpoint:AooEndpoint, token:number, accept:boolean)
+
+  addStreamMessage(msg: { type: number; data: Uint8Array; sampleOffset?: number; channel?: number }): void
+  delete(): void
+
+}
+
+export class AooSink implements AooStreamEndpoint<AooSinkEvent> {
+  constructor(id:number)
+  setup(numChannels:number, sampleRate:number, blockSize:number)
+  send(cb:(bytes:Uint8Array, ip:string, port:number) => void): void
+  handleMessage(bytes: Uint8Array, ip: string, port: number): void
+  pollEvents(): AooSourceEvent[]
+  eventsAvailable(): boolean
+  reset(): void
+  setId(id: number): void
+  setBufferSize(seconds: number): void
+  setPacketSize(bytes: number): void
+  setPingInterval(seconds: number): void
+  setResampleMethod(method: number): void
+  setDynamicResampling(enabled: boolean): void
+  setBinaryFormat(enabled: boolean): void
+  setDllBandwidth(q: number): void
+  getRealSampleRate(): number
+
+  setResendData(b: boolean): void
+  setResendInterval(s: number): void
+  setResendLimit(n:number): void
+  uninviteSource(ep:AooEndpoint): void
+  uninviteAll(): void
+  resetSource(ep:AooEndpoint): void
+  getBufferFillRatio(ep:AooEndpoint): number
+
+  setLatency(seconds: number): void
+  process(): Float32Array
+  inviteSource(endpoint:AooEndpoint): void
+
+  pollStreamMessages(): AooStreamMessage[]
+  delete(): void
+}
+
 export class AooClient {
   constructor()
   /** Create the UDP socket + start network threads. Returns the bound port. */
@@ -44,36 +158,11 @@ export class AooClient {
   sendPacket(bytes: Uint8Array, ip: string, port: number): void
   pollPackets(): { bytes: Uint8Array; ip: string; port: number }[]
   userId(): number
+
+  removeSource(source: AooSource): void
+  removeSink(sink: AooSink): void
 }
 
-export class AooSource {
-  constructor(id:number)
-  setup(numChannels:number, sampleRate:number, blockSize:number)
-  send(cb:(bytes:Uint8Array, ip:string, port:number) => void): void
-  setFormat(format?: AooFormat): void
-  setOpusBitrate(bitrate: number): void
-  setOpusComplexity(complexity: number): void
-  setOpusSignalType(signal: "music" | "voice" | "auto"):void
-  addSink(endpoint:AooEndpoint): void
-  startStream(): void
-  stopStream(): void
-  process(samples:Float32Array): void
-  removeSink(endpoint:AooEndpoint): void
-  pollEvents(): AooSourceEvent[]
-  handleInvite(endpoint:AooEndpoint, token:number, accept:boolean)
-  handleUninvite(endpoint:AooEndpoint, token:number, accept:boolean)
-}
-
-export class AooSink {
-  constructor(id:number)
-  setup(numChannels: number, sampleRate: number, blockSize: number): void
-  setLatency(seconds: number): void
-  handleMessage(bytes: Uint8Array, ip: string, port: number): void
-  process(): Float32Array
-  send(cb: (bytes: Uint8Array, ip: string, port: number) => void): void
-  pollEvents(): AooSinkEvent[]
-  inviteSource(endpoint:AooEndpoint): void
-}
 
 export function aoo_version(): string
 declare const aoo: {

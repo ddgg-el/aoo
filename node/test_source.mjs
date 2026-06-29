@@ -1,5 +1,5 @@
 // @ts-check
-import { AooClient, AooSource } from "aoo-native"
+import { AooClient, AooDataType, AooResampleMethod, AooSource, messageType } from "aoo-native"
 
 const BLOCK_SIZE = 256
 const SAMPLE_RATE = 48000
@@ -14,7 +14,12 @@ const src = new AooSource(1)
 src.setup(1, SAMPLE_RATE, BLOCK_SIZE)
 // src.setFormat()
 src.setFormat({ codec: "opus", application: "lowdelay", bitrate: 64000, complexity: 5 })
+src.setResampleMethod(AooResampleMethod.cubic)
+src.setRedundancy(2)
 client.addSource(src)
+
+src.setBufferSize(0.03)
+console.log("real sampleRate", src.getRealSampleRate())
 
 src.startStream()
 
@@ -24,12 +29,16 @@ console.log(`joined "${GROUP}" as ${USER} with id ${client.userId()}`)
 let bytes = 0
 let packets = 0
 let phase = 0
+let tick = 0
 const buf = new Float32Array(BLOCK_SIZE)
 
 setInterval(() => {
 	for (let i = 0; i < BLOCK_SIZE; i++) {
 		buf[i] = Math.sin(phase) * 0.25;
 		phase += 2 * Math.PI* 300/ SAMPLE_RATE
+	}
+	if(++tick % 200 === 0) {
+		src.addStreamMessage({type:AooDataType.text, data: Buffer.from("hello!!")})
 	}
 	src.process(buf)
 	client.notify()

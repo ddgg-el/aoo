@@ -33,6 +33,9 @@ setInterval(() => {
 setInterval(() => { 
 	console.log("rxPeak", rxPeak.toFixed(4))
 	rxPeak = 0
+	for (const m of sink.pollStreamMessages()) {
+		console.log("stream msg:", m.type, Buffer.from(m.data).toString(), "from", m.source)
+	}
 }, 1000)
 
 setInterval(() => { 
