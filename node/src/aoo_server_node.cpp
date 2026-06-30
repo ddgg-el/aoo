@@ -1,5 +1,10 @@
 #include "aoo_server_node.hpp"
+#include "aoo.h"
+#include "aoo_events.h"
+#include "aoo_types.h"
+#include "napi.h"
 #include "utils_node.hpp"
+#include <cstdint>
 
 void AooServerWrap::Register(Napi::Env env, Napi::Object exports)
 {
@@ -7,6 +12,13 @@ void AooServerWrap::Register(Napi::Env env, Napi::Object exports)
 		InstanceMethod("start", &AooServerWrap::Start),
 		InstanceMethod("stop", &AooServerWrap::Stop),
 		InstanceMethod("pollEvents", &AooServerWrap::PollEvents),
+		InstanceMethod("findGroup", &AooServerWrap::FindGroup),
+		InstanceMethod("addGroup", &AooServerWrap::AddGroup),
+		InstanceMethod("removeGroup", &AooServerWrap::RemoveGroup),
+		InstanceMethod("findUserInGroup", &AooServerWrap::FindUserInGroup),
+		InstanceMethod("removeUserFromGroup", &AooServerWrap::RemoveUserFromGroup),
+		InstanceMethod("notifyClient", &AooServerWrap::NotifyClient),
+		InstanceMethod("notifyGroup", &AooServerWrap::NotifyGroup)
 	});
 	exports.Set("AooServer", func);
 }
@@ -47,6 +59,52 @@ Napi::Value AooServerWrap::Stop(const Napi::CallbackInfo& info)
 	return info.Env().Undefined();
 }
 
+Napi::Value AooServerWrap::FindGroup(const Napi::CallbackInfo& info)
+{
+	std::string name = info[0].As<Napi::String>().Utf8Value();
+	AooId id = kAooIdInvalid;
+	server_->findGroup(name.c_str(), &id);
+	return Napi::Number::New(info.Env(), id == kAooIdInvalid ? -1 : id);
+}
+
+Napi::Value AooServerWrap::AddGroup(const Napi::CallbackInfo& info)
+{
+	std::string name = info[0].As<Napi::String>().Utf8Value();
+	std::string pwd = (info.Length() > 1 && info[1].IsString()) ? info[1].As<Napi::String>().Utf8Value(): std::string();
+	AooId groupId = kAooIdInvalid;
+	AooError err = server_->addGroup(name.c_str(), pwd.empty() ? nullptr : pwd.c_str(), nullptr, nullptr, 0, &groupId);
+	if(err != kAooOk) {
+		Napi::Error::New(info.Env(), std::string("addGroup: ") + aoo_strerror(err)).ThrowAsJavaScriptException();
+		return info.Env().Undefined();
+	}
+	return Napi::Number::New(info.Env(), groupId);
+	
+}
+
+Napi::Value AooServerWrap::RemoveGroup(const Napi::CallbackInfo& info)
+{
+	server_->removeGroup(info[0].As<Napi::Number>().Int32Value());
+	return info.Env().Undefined();
+}
+
+Napi::Value AooServerWrap::FindUserInGroup(const Napi::CallbackInfo& info)
+{
+	AooId group = info[0].As<Napi::Number>().Int32Value();
+	std::string name = info[1].As<Napi::String>().Utf8Value();
+	AooId userId = kAooIdInvalid;
+	server_->findUserInGroup(group, name.c_str(), &userId);
+	return Napi::Number::New(info.Env(), userId == kAooIdInvalid ? -1 : userId);
+}
+
+Napi::Value AooServerWrap::RemoveUserFromGroup(const Napi::CallbackInfo& info)
+{
+
+	AooId group = info[0].As<Napi::Number>().Int32Value();
+	AooId user = info[1].As<Napi::Number>().Int32Value();
+	server_->removeUserFromGroup(group, user);
+	return info.Env().Undefined();
+}
+
 Napi::Value AooServerWrap::PollEvents(const Napi::CallbackInfo& info)
 {
 	Napi::Env env = info.Env();
@@ -73,6 +131,13 @@ void AooServerWrap::HandleEvent(void* user, const AooEvent* e, AooThreadLevel)
 		o.Set("error", Napi::Number::New(env, c.error));
 		break;
 	}
+	case kAooEventClientLogout: {
+		auto& c = e->clientLogout;
+		o.Set("type", Napi::String::New(env, "clientLogout"));
+		o.Set("id", Napi::Number::New(env, c.id));
+		o.Set("error", Napi::Number::New(env, c.errorCode));
+		break;
+	}
 	case kAooEventGroupAdd: {
 		auto& g = e->groupAdd;
 		o.Set("type", Napi::String::New(env, "groupAdd"));
@@ -80,11 +145,68 @@ void AooServerWrap::HandleEvent(void* user, const AooEvent* e, AooThreadLevel)
 		o.Set("name", Napi::String::New(env, g.name));
 		break;
 	}
+	case kAooEventGroupRemove: {
+		auto& g = e->groupRemove;
+		o.Set("type", Napi::String::New(env, "groupRemove"));
+		o.Set("id", Napi::Number::New(env, g.id));
+		if(g.name) o.Set("name", Napi::String::New(env, g.name));
+		break;
+	}
+	case kAooEventGroupJoin: {
+		auto& g = e->groupJoin;
+		o.Set("type", Napi::String::New(env, "groupJoin"));
+		o.Set("groupId", Napi::Number::New(env, g.groupId));
+		o.Set("userId", Napi::Number::New(env, g.userId));
+		o.Set("clientId", Napi::Number::New(env, g.clientId));
+		if(g.groupName) o.Set("group", Napi::String::New(env, g.groupName));
+		if(g.userName) o.Set("user", Napi::String::New(env, g.userName));
+		break;
+	}
+	case kAooEventGroupLeave: {
+		auto& g = e->groupLeave;
+		o.Set("type", Napi::String::New(env, "groupLeave"));
+		o.Set("groupId", Napi::Number::New(env, g.groupId));
+		o.Set("userId", Napi::Number::New(env, g.userId));
+		if(g.groupName) o.Set("group", Napi::String::New(env, g.groupName));
+		if(g.userName) o.Set("user", Napi::String::New(env, g.userName));
+		break;
+	}
 	default:
 		o.Set("type", Napi::String::New(env, aoo_node_util::eventTypeName(e->type)));
 		break;
 	}
 	self->pollCtx_->arr.Set(self->pollCtx_->n++, o);
+}
+
+Napi::Value AooServerWrap::NotifyClient(const Napi::CallbackInfo& info)
+{
+	AooId client = info[0].As<Napi::Number>().Int32Value();
+	Napi::Object m = info[1].As<Napi::Object>();
+	auto data = m.Get("data").As<Napi::Buffer<uint8_t>>();
+	AooData d {
+		(AooDataType) m.Get("type").As<Napi::Number>().Int32Value(),
+		(const AooByte*) data.Data(),
+		(AooSize) data.Length()
+	};
+	server_->notifyClient(client, d);
+	return info.Env().Undefined();
+}
+
+Napi::Value AooServerWrap::NotifyGroup(const Napi::CallbackInfo& info)
+{
+	AooId group = info[0].As<Napi::Number>().Int32Value();
+	AooId user = info[1].As<Napi::Number>().Int32Value();
+
+	Napi::Object m = info[2].As<Napi::Object>();
+	auto data = m.Get("data").As<Napi::Buffer<uint8_t>>();
+	AooData d {
+		(AooDataType) m.Get("type").As<Napi::Number>().Int32Value(),
+		(const AooByte*) data.Data(),
+		(AooSize) data.Length()
+	};
+	server_->notifyGroup(group, user, d);
+	return info.Env().Undefined();
+
 }
 
 void AooServerWrap::stopThreads() {

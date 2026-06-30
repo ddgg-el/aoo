@@ -37,11 +37,19 @@ setInterval(() => {
 
 setInterval(() => { 
 	for (const ev of client.pollEvents()) {
-		if(ev.type === "peerJoin") {
-			console.log(ev)
-			sink.inviteSource({ip: ev.endpoint.ip, port: ev.endpoint.port, id:1})
-			client.sendMessage(ev.user, { type: AooDataType.text, data: Buffer.from(`Hello ${ev.user} from ${USER}!`) }, true)
+		switch (ev.type) {
+			case "peerJoin":
+				console.log(ev)
+				sink.inviteSource({ip: ev.endpoint.ip, port: ev.endpoint.port, id:1})
+				client.sendMessage(ev.user, { type: AooDataType.text, data: Buffer.from(`Hello ${ev.user} from ${USER}!`) }, true)
+				break;
+			case "notification":
+				console.log("server says:", Buffer.from(ev.data).toString())
+				break;
+			default:
+				break;
 		}
+		
 		console.log("sink event:", ev.type) 
 	}
 }, 200)

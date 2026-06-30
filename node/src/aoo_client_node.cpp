@@ -8,6 +8,7 @@
 #include "aoo_source_node.hpp"
 #include "aoo_types.h"
 #include "common/net_utils.hpp"
+#include "napi.h"
 #include "net/udp_server.hpp"
 #include "utils_node.hpp"
 #include <cstdint>
@@ -365,6 +366,13 @@ void AooClientWrap::HandleEvent(void* user, const AooEvent* e, AooThreadLevel)
 	case kAooEventDisconnect:
 		o.Set("type", Napi::String::New(env, "disconnect"));
 		break;
+	case kAooEventNotification: {
+		auto& n = e->notification;
+		o.Set("type", Napi::String::New(env, "notification"));
+		o.Set("msgType", Napi::Number::New(env, n.message.type));
+		o.Set("data", Napi::Buffer<uint8_t>::Copy(env, n.message.data, n.message.size));
+		break;
+	}
 	default:
 		o.Set("type", Napi::String::New(env, aoo_node_util::eventTypeName(e->type)));
 		break;

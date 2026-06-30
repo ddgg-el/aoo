@@ -1,12 +1,35 @@
 export type AooFormat = 
   | { codec: "pcm" }
   | { codec: "opus"; application?:'audio' | 'lowdelay' | "voip"; blockSize?: number; bitrate?: number; complexity?: number } 
+
+
+type AooEventName =
+  | "error" | "sinkPing" | "sourcePing" | "invite" | "uninvite"
+  | "sinkAdd" | "sinkRemove" | "sourceAdd" | "sourceRemove"
+  | "streamStart" | "streamStop" | "streamState" | "streamTime" | "streamLatency" | "formatChange"
+  | "inviteDecline" | "inviteTimeout" | "uninviteTimeout"
+  | "bufferOverrun" | "bufferUnderrun" | "blockDrop" | "blockResend" | "blockXRun" | "frameResend"
+  | "disconnect" | "notification" | "groupEject"
+  | "peerPing" | "peerState" | "peerHandshake" | "peerTimeout"
+  | "peerJoin" | "peerLeave" | "peerMessage" | "peerUpdate"
+  | "groupUpdate" | "userUpdate" | "clientError"
+  | "clientLogin" | "clientLogout"| "groupAdd" | "groupRemove" | "groupJoin" | "groupLeave"
+
+export type AooServerEvent = 
+  | { type: "clientLogin"; id: number; error: number; version?: string }
+  | { type: "clientLogout"; id: number; error: number; errorMessage?: string }
+  | { type: "groupAdd"; id: number; name: string }
+  | { type: "groupRemove"; id: number; name?: string }
+  | { type: "groupJoin"; groupId: number; userId: number; clientId: number; group?: string; user?: string }
+  | { type: "groupLeave"; groupId: number; userId: number; group?: string; user?: string }
+  | { type: Exclude<AooEventName, "clientLogin" | "clientLogout" | "groupAdd" | "groupRemove" | "groupJoin" | "groupLeave"> }
+
 export type AooClientEvent =
-  // | { type: "peerJoin" | "peerLeave"; group: string; user: string; ip: string; port: number; userId: number }
   | { type: "peerJoin" | "peerLeave"; group: string; user: string; endpoint: AooEndpoint }
   | { type: "peerMessage"; group: number; user: string; userId:number; msgType: number; data: Uint8Array }
   | { type: "disconnect" }
-  | { type: number } // numeric AOO event types not yet marshalled
+  | { type: "notification"; msgType: number; data: Uint8Array }
+  | { type: Exclude<AooEventName, "peerJoin" | "peerLeave" | "peerMessage" | "disconnect" | "notification"> } // numeric AOO event types not yet marshalled
 
 export type AooSourceEvent =
   | { type: "sinkPing"; endpoint: AooEndpoint; rtt: number; packetLoss: number }
@@ -169,7 +192,14 @@ export class AooServer {
   constructor()
   start(port:number): number
   stop(): void
-  pollEvents(): { type: string; [k: string]: any} []
+  pollEvents(): AooServerEvent[]
+  findGroup(name: string): number                       // groupId, or -1
+  addGroup(name: string, password?: string): number     // groupId
+  removeGroup(groupId: number): void
+  findUserInGroup(groupId: number, userName: string): number  // userId, or -1
+  removeUserFromGroup(groupId: number, userId: number): void
+  notifyClient(client: number, msg: { type: number; data: Uint8Array }): void
+  notifyGroup(group: number, user:number, msg: { type:number, data: Uint8Array}): void
 
 }
 

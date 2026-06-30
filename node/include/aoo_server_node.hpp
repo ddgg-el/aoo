@@ -14,6 +14,14 @@ private:
 	Napi::Value Start(const Napi::CallbackInfo& info);
 	Napi::Value Stop(const Napi::CallbackInfo& info);
 	Napi::Value PollEvents(const Napi::CallbackInfo& info);
+	Napi::Value FindGroup(const Napi::CallbackInfo& info);
+	Napi::Value AddGroup(const Napi::CallbackInfo& info);
+	Napi::Value RemoveGroup(const Napi::CallbackInfo& info);
+	Napi::Value FindUserInGroup(const Napi::CallbackInfo& info);
+	Napi::Value RemoveUserFromGroup(const Napi::CallbackInfo& info);
+
+	Napi::Value NotifyClient(const Napi::CallbackInfo& info);
+	Napi::Value NotifyGroup(const Napi::CallbackInfo& info);
 
 	static void HandleEvent(void* user, const AooEvent* e, AooThreadLevel);
 
