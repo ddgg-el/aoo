@@ -15,6 +15,21 @@ type AooEventName =
   | "groupUpdate" | "userUpdate" | "clientError"
   | "clientLogin" | "clientLogout"| "groupAdd" | "groupRemove" | "groupJoin" | "groupLeave"
 
+type EventOf<E extends { type: string }, K extends string> = E extends unknown ? (K extends E["type"] ? E : never) : never
+interface AooEmitter<E extends { type:string }, Extra = {}> {
+  on ( event: "event", listener: (ev: E) => void ) : this
+  once ( event: "event", listener: (ev: E) => void ) : this
+  off ( event: "event", listener: (ev: E) => void ) : this 
+  on <K extends E["type"] | keyof Extra>(event: K, listener: K extends keyof Extra ? Extra[K] : (ev: EventOf<E, K>) => void): this
+  once<K extends E["type"] | keyof Extra>(event: K, listener: K extends keyof Extra ? Extra[K] : (ev: EventOf<E, K>) => void): this
+  off <K extends E["type"] | keyof Extra>(event: K, listener: K extends keyof Extra ? Extra[K] : (ev: EventOf<E, K>) => void): this
+  removeAllListeners(event?: string): this
+  emit(event: string, ...args: any[]): boolean
+}
+
+type PacketEvents = { packet: (p: { bytes: Uint8Array; ip: string; port: number}) => void }
+type StreamMsgEvents = { streamMessage: (m: AooStreamMessage) => void }
+
 export type AooServerEvent = 
   | { type: "clientLogin"; id: number; error: number; version?: string }
   | { type: "clientLogout"; id: number; error: number; errorMessage?: string }
@@ -88,6 +103,7 @@ interface AooStreamEndpoint<E> {
   getRealSampleRate(): number
 }
 
+export interface AooSource extends AooEmitter<AooSourceEvent> {}
 export class AooSource implements AooStreamEndpoint<AooSourceEvent> {
   constructor(id:number)
   setup(numChannels:number, sampleRate:number, blockSize:number)
@@ -131,6 +147,7 @@ export class AooSource implements AooStreamEndpoint<AooSourceEvent> {
 
 }
 
+export interface AooSink   extends AooEmitter<AooSinkEvent, StreamMsgEvents> {}
 export class AooSink implements AooStreamEndpoint<AooSinkEvent> {
   constructor(id:number)
   setup(numChannels:number, sampleRate:number, blockSize:number)
@@ -165,6 +182,7 @@ export class AooSink implements AooStreamEndpoint<AooSinkEvent> {
   delete(): void
 }
 
+export interface AooClient extends AooEmitter<AooClientEvent, PacketEvents> {}
 export class AooClient {
   constructor()
   /** Create the UDP socket + start network threads. Returns the bound port. */
@@ -188,6 +206,7 @@ export class AooClient {
   removeSink(sink: AooSink): void
 }
 
+export interface AooServer extends AooEmitter<AooServerEvent> {}
 export class AooServer {
   constructor()
   start(port:number): number

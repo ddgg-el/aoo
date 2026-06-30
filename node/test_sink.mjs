@@ -17,6 +17,19 @@ sink.setup(1, SAMPLE_RATE, BLOCK_SIZE)
 sink.setLatency(0.05)
 client.addSink(sink)
 
+sink.on("streamMessage", m => {
+	console.log("stream msg:", m.type, Buffer.from(m.data).toString(), "from", m.source)
+})
+
+// client events
+client.on("peerJoin", ev => {
+  console.log(ev)
+  sink.inviteSource({ ip: ev.endpoint.ip, port: ev.endpoint.port, id: 1 })
+  client.sendMessage(ev.user, { type: AooDataType.text, data: Buffer.from(`Hello ${ev.user} from ${USER}!`) }, true)
+})
+client.on("notification", ev => console.log("server says:", Buffer.from(ev.data).toString()))
+client.on("event", ev => console.log("client event:", ev.type)) 
+
 let rxPeak = 0
 
 setInterval(() => {
@@ -30,26 +43,4 @@ setInterval(() => {
 setInterval(() => { 
 	console.log("rxPeak", rxPeak.toFixed(4))
 	rxPeak = 0
-	for (const m of sink.pollStreamMessages()) {
-		console.log("stream msg:", m.type, Buffer.from(m.data).toString(), "from", m.source)
-	}
 }, 1000)
-
-setInterval(() => { 
-	for (const ev of client.pollEvents()) {
-		switch (ev.type) {
-			case "peerJoin":
-				console.log(ev)
-				sink.inviteSource({ip: ev.endpoint.ip, port: ev.endpoint.port, id:1})
-				client.sendMessage(ev.user, { type: AooDataType.text, data: Buffer.from(`Hello ${ev.user} from ${USER}!`) }, true)
-				break;
-			case "notification":
-				console.log("server says:", Buffer.from(ev.data).toString())
-				break;
-			default:
-				break;
-		}
-		
-		console.log("sink event:", ev.type) 
-	}
-}, 200)

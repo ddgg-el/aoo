@@ -26,6 +26,11 @@ src.startStream()
 client.join(SERVER_ADDR.ip, SERVER_ADDR.port, GROUP, USER)
 console.log(`joined "${GROUP}" as ${USER} with id ${client.userId()}`)
 
+client.on("peerJoin", ev => src.addSink(ev.endpoint));
+client.on("peerLeave", ev => src.removeSink(ev.endpoint));
+client.on("disconnect", ev => console.log("disconnected:", ev))
+client.on("peerMessage", ev => console.log("peer message:", Buffer.from(ev.data).toString()))
+
 let bytes = 0
 let packets = 0
 let phase = 0
@@ -46,41 +51,11 @@ setInterval(() => {
 	packets++
 },5)
 
-setInterval(() => { 
-	for (const ev of client.pollEvents()) {
-		switch (ev.type) {
-			case "peerJoin": 
-				console.log("User ", ev.user,  "joined")
-				break
-			case "peerLeave":
-				console.log("User ", ev.user,  "leaved")
-				break
-			case "disconnect":
-				console.log("disconnected:", ev) 
-				break
-			case "peerMessage":
-				console.log("peer message from user", ev.user, ":", Buffer.from(ev.data).toString())
-			default:
-				break
-		}
-	} 
-}, 200)
+src.on("invite", ev => src.handleInvite(ev.endpoint, ev.token, true))
+src.on("uninvite", ev => {
+	src.handleUninvite(ev.endpoint, ev.token, true)
+	src.removeSink(ev.endpoint)
+})
 
-setInterval(() => { 
-	for (const ev of src.pollEvents()) {
-		switch (ev.type) {
-			case "invite":
-				src.handleInvite(ev.endpoint, ev.token, true)
-				// src.addSink(ev.endpoint)
-				break
-			case "uninvite":
-				src.handleUninvite(ev.endpoint, ev.token, true)
-				src.removeSink(ev.endpoint)
-				break
-			default:
-				break
-		}
-	} 
-}, 200)
 
 setInterval(() => console.log("emitted", packets, "packets", bytes, "bytes"), 1000)
