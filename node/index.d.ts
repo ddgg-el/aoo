@@ -165,6 +165,14 @@ export class AooClient {
   removeSink(sink: AooSink): void
 }
 
+export class AooServer {
+  constructor()
+  start(port:number): number
+  stop(): void
+  pollEvents(): { type: string; [k: string]: any} []
+
+}
+
 
 export function aoo_version(): string
 declare const aoo: {

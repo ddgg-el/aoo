@@ -15,6 +15,7 @@ add_library(${PROJECT_NAME} SHARED
 	src/aoo_client_node.cpp
 	src/aoo_source_node.cpp
 	src/aoo_sink_node.cpp
+	src/aoo_server_node.cpp
 	${CMAKE_JS_SOURCE}
 )
 set_target_properties(${PROJECT_NAME} PROPERTIES PREFIX "" SUFFIX ".node")

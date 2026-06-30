@@ -30,5 +30,6 @@ export const AooOpusSignalType = aoo.AooOpusSignalType
 export const AooClient = aoo.AooClient
 export const AooSource = aoo.AooSource
 export const AooSink = aoo.AooSink
+export const AooServer = aoo.AooServer
 export const aoo_version = aoo.aoo_version
 export default aoo
