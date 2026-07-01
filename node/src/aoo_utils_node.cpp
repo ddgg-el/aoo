@@ -1,6 +1,5 @@
-#include "utils_node.hpp"
+#include "aoo_utils_node.hpp"
 #include "aoo.h"
-#include "aoo_client_node.hpp"
 #include "aoo_endpoint_wrap.hpp"
 #include "aoo_events.h"
 #include "aoo_types.h"
@@ -9,8 +8,6 @@
 #include "codec/aoo_opus.h"
 
 namespace {
-
-	
 
 	static const std::pair<const char*, int> kEventTypes[] = {
 		{"error", kAooEventError},
@@ -67,7 +64,7 @@ namespace {
 	
 }
 
-namespace aoo_node_util {
+namespace AooNodeUtils {
 
 	void Register(Napi::Env env, Napi::Object exports) {
 		exports.Set("aoo_version",   Napi::Function::New(env, Version));

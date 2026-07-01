@@ -3,7 +3,7 @@
 #include "aoo_events.h"
 #include "aoo_types.h"
 #include "napi.h"
-#include "utils_node.hpp"
+#include "aoo_utils_node.hpp"
 #include <cstdint>
 
 void AooServerWrap::Register(Napi::Env env, Napi::Object exports)
@@ -172,7 +172,7 @@ void AooServerWrap::HandleEvent(void* user, const AooEvent* e, AooThreadLevel)
 		break;
 	}
 	default:
-		o.Set("type", Napi::String::New(env, aoo_node_util::eventTypeName(e->type)));
+		o.Set("type", Napi::String::New(env, AooNodeUtils::eventTypeName(e->type)));
 		break;
 	}
 	self->pollCtx_->arr.Set(self->pollCtx_->n++, o);

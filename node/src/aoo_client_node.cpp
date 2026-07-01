@@ -10,16 +10,17 @@
 #include "common/net_utils.hpp"
 #include "napi.h"
 #include "net/udp_server.hpp"
-#include "utils_node.hpp"
+#include "aoo_utils_node.hpp"
 #include <cstdint>
 #include <cstdio>
 #include <exception>
+#include <memory>
 #include <mutex>
 #include <string>
 #include <sys/socket.h>
 #include <vector>
 
-
+struct ReqCtx { AooClientWrap* self; AooId reqId; AooNodeUtils::AooClientRequestsType type; };
 
 void AooClientWrap::Register(Napi::Env env, Napi::Object exports) 
 {
@@ -31,6 +32,8 @@ void AooClientWrap::Register(Napi::Env env, Napi::Object exports)
 		InstanceMethod("notify", &AooClientWrap::Notify),
 		InstanceMethod("connect", &AooClientWrap::Connect),
 		InstanceMethod("joinGroup", &AooClientWrap::JoinGroup),
+		InstanceMethod("leaveGroup", &AooClientWrap::LeaveGroup),
+		InstanceMethod("disconnect", &AooClientWrap::Disconnect),
 		InstanceMethod("join", &AooClientWrap::Join),
 		InstanceMethod("pollEvents", &AooClientWrap::PollEvents),
 		InstanceMethod("sendPacket", &AooClientWrap::SendPacket),
@@ -40,6 +43,7 @@ void AooClientWrap::Register(Napi::Env env, Napi::Object exports)
 		InstanceMethod("groupId", &AooClientWrap::GroupId),
 		InstanceMethod("removeSource", &AooClientWrap::RemoveSource),
 		InstanceMethod("removeSink", &AooClientWrap::RemoveSink),
+		InstanceMethod("connected", &AooClientWrap::Connected)
 	});
 	exports.Set("AooClient", func);
 	
@@ -133,7 +137,9 @@ void AooClientWrap::startThreads(bool external)
 
 Napi::Value AooClientWrap::Stop(const Napi::CallbackInfo& info) 
 {
+	Napi::Env env = info.Env();
 	stopThreads();
+	RejectPending(env, "client stopped");
 	return info.Env().Undefined();
 }
 
@@ -159,76 +165,158 @@ Napi::Value AooClientWrap::Notify(const Napi::CallbackInfo& info)
 
 Napi::Value AooClientWrap::Connect(const Napi::CallbackInfo& info) 
 {
+	Napi::Env env = info.Env();
 	host_ = info[0].As<Napi::String>().Utf8Value();
 	int32_t port = info[1].As<Napi::Number>().Int32Value();
-	AooClientConnect args;
+
+	auto deferred = Napi::Promise::Deferred::New(env);
+	AooId reqId = nextReqId_++;
+	pending_.emplace(reqId, deferred);
+
+	AooClientConnect args{};
 	args.hostName = host_.c_str();
 	args.port = (AooUInt16)port;
 
-	client_->connect(args, 
-		[](void* user, const AooRequest*, AooError result, const AooResponse*) {
-			printf("[client] connect: %s\n", result == kAooOk ? "OK" : aoo_strerror(result));
-			static_cast<AooClientWrap*>(user)->connected_.store(result == kAooOk);
-		}, this);
-	return info.Env().Undefined();
+	auto* ctx = new ReqCtx{ this, reqId, AooNodeUtils::AooClientRequestsType::Connect };
+	AooError err = client_->connect(args, &AooClientWrap::OnResponse, ctx);
+	if(err != kAooOk) {
+		pending_.erase(reqId);
+		delete ctx;
+		deferred.Reject(Napi::Error::New(env, aoo_strerror(err)).Value());
+	}
+	
+	return deferred.Promise();
 }
+
+Napi::Value AooClientWrap::LeaveGroup(const Napi::CallbackInfo& info)
+{
+	Napi::Env env = info.Env();
+	auto deferred = Napi::Promise::Deferred::New(env);
+
+	AooId group = groupId_.load();
+	if(group == kAooIdInvalid) {
+		deferred.Reject(Napi::Error::New(env, "leaveGroup: not in a group").Value());
+		return deferred.Promise();
+	}
+	AooId reqId = nextReqId_++;
+	pending_.emplace(reqId, deferred);
+	auto* ctx = new ReqCtx {this, reqId, AooNodeUtils::AooClientRequestsType::LeaveGroup};
+	AooError err = client_->leaveGroup(group, &AooClientWrap::OnResponse, ctx);
+	if(err != kAooOk) {
+		pending_.erase(reqId);
+		delete ctx;
+		deferred.Reject(Napi::Error::New(env, aoo_strerror(err)).Value());
+	}
+	return deferred.Promise();
+}	
 
 Napi::Value AooClientWrap::JoinGroup(const Napi::CallbackInfo& info) 
 {
+	Napi::Env env = info.Env();
 	group_ = info[0].As<Napi::String>().Utf8Value();
 	user_ = info[1].As<Napi::String>().Utf8Value();
+	std::string pass = (info.Length() > 2 && info[2].IsString()) ? info[2].As<Napi::String>().Utf8Value(): password_;
+
+	auto deferred = Napi::Promise::Deferred::New(env);
+	AooId reqId = nextReqId_++;
+	pending_.emplace(reqId, deferred);
+
+
 	AooClientJoinGroup args;
 	args.groupName = group_.c_str();
+	args.groupPassword = pass.c_str();
 	args.userName = user_.c_str();
+	args.userPassword = pass.c_str();
 
-	client_->joinGroup(args, 
-		[](void*, const AooRequest*, AooError result, const AooResponse*) {
-			printf("[client] joinGroup: %s\n", result == kAooOk ? "OK" : aoo_strerror(result));
-	}, this);
-	return info.Env().Undefined();
+	auto* ctx = new ReqCtx{ this, reqId, AooNodeUtils::AooClientRequestsType::JoinGroup};
+	AooError err = client_->joinGroup(args, &AooClientWrap::OnResponse, ctx);
+	if(err != kAooOk) {
+		pending_.erase(reqId);
+		delete ctx;
+		deferred.Reject(Napi::Error::New(env, aoo_strerror(err)).Value());
+	}
+	return deferred.Promise();
 }
 
 Napi::Value AooClientWrap::Join(const Napi::CallbackInfo& info)
 {
+	Napi::Env env = info.Env();
 	host_  = info[0].As<Napi::String>().Utf8Value();
 	int port = info[1].As<Napi::Number>().Int32Value();
 	group_ = info[2].As<Napi::String>().Utf8Value();
 	user_  = info[3].As<Napi::String>().Utf8Value();
+	password_ = (info.Length() > 4 && info[4].IsString()) ? info[4].As<Napi::String>().Utf8Value() : password_;
 
-	AooClientConnect args;
+	auto deferred = Napi::Promise::Deferred::New(env);
+	AooId reqId = nextReqId_++;
+	pending_.emplace(reqId, deferred);
+
+	AooClientConnect args{};
 	args.hostName = host_.c_str();
 	args.port = (AooUInt16)port;
+	args.password = password_.c_str();
+	auto* ctx = new ReqCtx{ this, reqId, AooNodeUtils::AooClientRequestsType::JoinChain};
+	AooError err = client_->connect(args, &AooClientWrap::OnJoinConnected, ctx);
+	if(err != kAooOk) {
+		pending_.erase(reqId);
+		delete ctx;
+		deferred.Reject(Napi::Error::New(env, aoo_strerror(err)).Value());
+	}
+	
+	return deferred.Promise();
+}
 
-	client_->connect(args,
-		[](void* user, const AooRequest*, AooError result, const AooResponse*) {
-			auto* self = static_cast<AooClientWrap*>(user);
-			if (result != kAooOk) {
-				printf("[client] connect failed: %s\n", aoo_strerror(result));
-				return;
-			}
-			self->connected_.store(true);
-			AooClientJoinGroup jargs;
-			jargs.groupName = self->group_.c_str();
-			jargs.userName  = self->user_.c_str();
-			self->client_->joinGroup(jargs,
-				[](void* user, const AooRequest*, AooError r, const AooResponse* resp) {
-					auto* self = static_cast<AooClientWrap*>(user);
-					if(r == kAooOk && resp) {
-						self->userId_.store(resp->groupJoin.userId);
-						self->groupId_.store(resp->groupJoin.groupId);
-					}
-					printf("[client] joinGroup: %s\n", r == kAooOk ? "OK" : aoo_strerror(r));
-				}, self);
-		}, this);
+void AOO_CALL AooClientWrap::OnJoinConnected(void* user, const AooRequest*, AooError result, const AooResponse*) 
+{
+	auto* ctx = static_cast<ReqCtx*>(user);
+	auto* self = ctx->self;
+	if(result != kAooOk) {
+		{
+			std::lock_guard<std::mutex> lock(self->reqMutex_);
+			self->completed_.push_back({ctx->reqId, result});
+		}
+		delete ctx;
+		return;
+	}
+	self->connected_.store(true);
+	AooClientJoinGroup j {};
+	j.groupName = self->group_.c_str();
+	j.userName = self->user_.c_str();
+	j.groupPassword = self->password_.c_str();
+	j.userPassword = self->password_.c_str();
+	AooError err = self->client_->joinGroup(j, &AooClientWrap::OnResponse, ctx);
+	if(err != kAooOk) {
+		{
+			std::lock_guard<std::mutex> lock(self->reqMutex_);
+			self->completed_.push_back({ctx->reqId, err});
+		}
+		delete ctx;
+	}
+}
 
-	return info.Env().Undefined();
+Napi::Value AooClientWrap::Disconnect(const Napi::CallbackInfo& info)
+{
+	Napi::Env env = info.Env();
+	auto deferred = Napi::Promise::Deferred::New(env);
+
+	AooId reqId = nextReqId_++;
+	pending_.emplace(reqId, deferred);
+	auto* ctx = new ReqCtx{this, reqId, AooNodeUtils::AooClientRequestsType::Disconnect};
+	AooError err = client_->disconnect(&AooClientWrap::OnResponse, ctx);
+	if(err != kAooOk) {
+		pending_.erase(reqId);
+		delete ctx;
+		deferred.Reject(Napi::Error::New(env, aoo_strerror(err)).Value());
+	}
+	return deferred.Promise();
 }
 
 Napi::Value AooClientWrap::PollEvents(const Napi::CallbackInfo& info)
 {
 	Napi::Env env = info.Env();
+	ResolvePending(env);
 	Napi::Array arr = Napi::Array::New(env);
-	PollCtx ctx { env, arr, 0};
+	AooNodeUtils::PollCtx ctx { env, arr, 0};
 	pollCtx_ = &ctx;
 	client_->pollEvents();
 	pollCtx_ = nullptr;
@@ -258,7 +346,7 @@ Napi::Value AooClientWrap::SendPacket(const Napi::CallbackInfo& info)
 Napi::Value AooClientWrap::PollPackets(const Napi::CallbackInfo& info) 
 {
 	Napi::Env env = info.Env();
-	std::vector<InPacket> packets;
+	std::vector<AooNodeUtils::InPacket> packets;
 	{
 		std::lock_guard<std::mutex> lock(inMutex_);
 		packets.swap(inQueue);
@@ -274,6 +362,71 @@ Napi::Value AooClientWrap::PollPackets(const Napi::CallbackInfo& info)
 		arr.Set(i, o);
 	}
 	return arr;
+}
+
+void AOO_CALL AooClientWrap::OnResponse(void* user, const AooRequest*, AooError result, const AooResponse* response)
+{
+	std::unique_ptr<ReqCtx> ctx(static_cast<ReqCtx*>(user));
+	auto* self = ctx->self;
+	AooNodeUtils::CompletedRequest c { ctx->reqId, result};
+
+	if(ctx->type == AooNodeUtils::AooClientRequestsType::Connect && result == kAooOk) {
+		self->connected_.store(true);
+	}
+
+	const bool joined = (ctx->type == AooNodeUtils::AooClientRequestsType::JoinGroup || ctx->type == AooNodeUtils::AooClientRequestsType::JoinChain);
+	if(joined && result == kAooOk && response) {
+		c.userId = response->groupJoin.userId;
+		c.groupId = response->groupJoin.groupId;
+		self->userId_.store(c.userId);
+		self->groupId_.store(c.groupId);
+	}
+	if(ctx->type == AooNodeUtils::AooClientRequestsType::LeaveGroup && result == kAooOk) {
+		self->userId_.store(kAooIdInvalid);
+		self->groupId_.store(kAooIdInvalid);
+	}
+	if(ctx->type == AooNodeUtils::AooClientRequestsType::Disconnect && result == kAooOk) {
+		self->connected_.store(false);
+		self->userId_.store(kAooIdInvalid);
+		self->groupId_.store(kAooIdInvalid);
+	}
+	std::lock_guard<std::mutex> lock(self->reqMutex_);
+	self->completed_.push_back(c);
+}
+
+void AooClientWrap::ResolvePending(Napi::Env env) {
+	std::vector<AooNodeUtils::CompletedRequest> done;
+	{ 
+		std::lock_guard<std::mutex> lock(reqMutex_); 
+		done.swap(completed_); 
+	}
+	for(auto& c :done) {
+		auto it = pending_.find(c.reqId);
+		if(it == pending_.end()) continue;
+		Napi::Promise::Deferred deferred = it->second;
+		pending_.erase(it);
+
+		if(c.error != kAooOk) {
+			deferred.Reject(Napi::Error::New(env, aoo_strerror(c.error)).Value());
+		} else if(c.groupId != kAooIdInvalid) {
+			Napi::Object o = Napi::Object::New(env);
+			o.Set("userId", Napi::Number::New(env, c.userId));
+			o.Set("groupId", Napi::Number::New(env, c.groupId));
+			deferred.Resolve(o);
+		} else {
+			deferred.Resolve(env.Undefined());
+		}
+	}
+}
+
+void AooClientWrap::RejectPending(Napi::Env env, const char* reason)
+{
+	for (auto& [reqId, deferred] : pending_) {
+		deferred.Reject(Napi::Error::New(env, reason).Value());
+	}
+	pending_.clear();
+	std::lock_guard<std::mutex> lock(reqMutex_);
+	completed_.clear();
 }
 
 AooInt32 AOO_CALL AooClientWrap::SendFunc(void* user, const AooByte* data, AooInt32 size, const void* address, AooAddrSize addrlen, AooFlag) 
@@ -327,6 +480,7 @@ void AooClientWrap::HandleEvent(void* user, const AooEvent* e, AooThreadLevel)
 	Napi::Object o = Napi::Object::New(env);
 
 	switch (e->type) {
+	case kAooEventPeerTimeout:
 	case kAooEventPeerJoin:
 	case kAooEventPeerLeave: {
 		auto* p = reinterpret_cast<const AooEventPeer*>(e);
@@ -342,13 +496,21 @@ void AooClientWrap::HandleEvent(void* user, const AooEvent* e, AooThreadLevel)
 		AooSize ipsize = sizeof(ipbuf);
 		AooUInt16 port = 0;
 		aoo_sockAddrToIpEndpoint(p->address.data, p->address.size, ipbuf, &ipsize, &port, nullptr);
-		o.Set("type", e->type == kAooEventPeerJoin ? "peerJoin" : "peerLeave");
+		const char* name = e->type == kAooEventPeerJoin ? "peerJoin" : e->type == kAooEventPeerLeave ? "peerLeave" : "peerTimeout";
+		o.Set("type", name);
 		o.Set("group", Napi::String::New(env, p->groupName));
 		o.Set("user", Napi::String::New(env, p->userName));
-		o.Set("endpoint", aoo_node_util::endpointToObject(env, peerEp));
-		// o.Set("ip", Napi::String::New(env, std::string(ipbuf,ipsize)));
-		// o.Set("port", Napi::Number::New(env, port));
-		// o.Set("userId", Napi::Number::New(env, p->userId));
+		o.Set("endpoint", AooNodeUtils::endpointToObject(env, peerEp));
+
+		break;
+	}
+	case kAooEventPeerPing: {
+		auto& p = e->peerPing;
+		double rtt = aoo_ntpTimeToSeconds((p.t4 - p.t1) - (p.t3 - p.t2));
+		auto it = self->peerNames_.find(p.user);
+		o.Set("type", "peerPing");
+		o.Set("user", Napi::String::New(env, it != self->peerNames_.end() ? it->second : std::string()));
+		o.Set("rtt", Napi::Number::New(env, rtt));
 		break;
 	}
 	case kAooEventPeerMessage: {
@@ -363,9 +525,16 @@ void AooClientWrap::HandleEvent(void* user, const AooEvent* e, AooThreadLevel)
 		o.Set("data", Napi::Buffer<uint8_t>::Copy(env, p.data.data, p.data.size));
 		break;
 	}
-	case kAooEventDisconnect:
+	case kAooEventDisconnect: {
+		auto& d = e->disconnect;
+		self->connected_.store(false);
+		self->userId_.store(kAooIdInvalid);
+		self->groupId_.store(kAooIdInvalid);
 		o.Set("type", Napi::String::New(env, "disconnect"));
+		o.Set("error", Napi::Number::New(env, d.errorCode));
+		o.Set("message", Napi::String::New(env, d.errorMessage ? d.errorMessage : ""));
 		break;
+	}
 	case kAooEventNotification: {
 		auto& n = e->notification;
 		o.Set("type", Napi::String::New(env, "notification"));
@@ -374,7 +543,7 @@ void AooClientWrap::HandleEvent(void* user, const AooEvent* e, AooThreadLevel)
 		break;
 	}
 	default:
-		o.Set("type", Napi::String::New(env, aoo_node_util::eventTypeName(e->type)));
+		o.Set("type", Napi::String::New(env, AooNodeUtils::eventTypeName(e->type)));
 		break;
 	}
 	self->pollCtx_->arr.Set(self->pollCtx_->n++, o);
@@ -398,6 +567,11 @@ Napi::Value AooClientWrap::UserId(const Napi::CallbackInfo& info)
 {
 	AooId id = userId_.load();
 	return Napi::Number::New(info.Env(), id == kAooIdInvalid ? -1 : id);
+}
+
+Napi::Value AooClientWrap::Connected(const Napi::CallbackInfo& info)
+{
+	return Napi::Boolean::New(info.Env(), connected_.load());
 }
 
 Napi::Value AooClientWrap::RemoveSource(const Napi::CallbackInfo& info)

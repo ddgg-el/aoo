@@ -40,11 +40,12 @@ export type AooServerEvent =
   | { type: Exclude<AooEventName, "clientLogin" | "clientLogout" | "groupAdd" | "groupRemove" | "groupJoin" | "groupLeave"> }
 
 export type AooClientEvent =
-  | { type: "peerJoin" | "peerLeave"; group: string; user: string; endpoint: AooEndpoint }
+  | { type: "peerJoin" | "peerLeave" | "peerTimeout"; group: string; user: string; endpoint: AooEndpoint }
   | { type: "peerMessage"; group: number; user: string; userId:number; msgType: number; data: Uint8Array }
-  | { type: "disconnect" }
+  | { type: "peerPing"; user: string; rtt:number}
   | { type: "notification"; msgType: number; data: Uint8Array }
-  | { type: Exclude<AooEventName, "peerJoin" | "peerLeave" | "peerMessage" | "disconnect" | "notification"> } // numeric AOO event types not yet marshalled
+  | { type: "disconnect"; error: number; message: string}
+  | { type: Exclude<AooEventName, "peerJoin" | "peerLeave" | "peerTimeout" | "peerMessage" | "disconnect" | "notification" | "peerPing" | "disconnect"> } // numeric AOO event types not yet marshalled
 
 export type AooSourceEvent =
   | { type: "sinkPing"; endpoint: AooEndpoint; rtt: number; packetLoss: number }
@@ -73,6 +74,8 @@ export interface AooStreamMessage {
   data: Uint8Array
   source: AooEndpoint
 }
+
+export type AooSendCallback = (bytes: Uint8Array, ip: string, port: number) => void
 
 export const AooResampleMethod: { hold: number; linear: number; cubic: number }
 export const AooMsgType: { source: number; sink: number }
@@ -191,9 +194,10 @@ export class AooClient {
   addSource(source:AooSource): void
   addSink(sink:AooSink): void
   notify(): void
-  connect(host: string, port: number): void
-  joinGroup(group: string, user: string): void
-  join(server: string, port: number, group: string, user: string): void
+  connect(host: string, port: number): Promise<void>
+  joinGroup(group: string, user: string, groupPassword?:string): Promise<{ userId: number; groupId: number }>
+  leaveGroup(): Promise<void>
+  join(server: string, port: number, group: string, user: string, groupPassword?:string): Promise<{userId: number; groupId: number}>
   sendMessage(user: number|string, msg: { type:number; data: Uint8Array}, reliable?:boolean): void
   /** Drain pending events; call on a timer. */
   pollEvents(): AooClientEvent[]
@@ -202,8 +206,11 @@ export class AooClient {
   pollPackets(): { bytes: Uint8Array; ip: string; port: number }[]
   userId(): number
   groupId(): number
+  connected(): boolean
   removeSource(source: AooSource): void
   removeSink(sink: AooSink): void
+  close(): Promise<void>
+  disconnect(): Promise<void>
 }
 
 export interface AooServer extends AooEmitter<AooServerEvent> {}

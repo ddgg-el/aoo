@@ -1,13 +1,14 @@
+/** @import { AooSource, AooClient, AooSink } from "./index.mjs" */
 import { EventEmitter } from "node:events";
 
 export const NATIVE = Symbol("aooNative")
 /**
  * 
- * @param {object} native AOO Classes
+ * @param {AooClient | AooSink | AooSource} native AOO Classes
  * @param { {pollMethod: string, eventName: string}[]} extraQueues 
- * @returns 
+ * @returns
  */
-export function pollable(native, extraQueues = []) {
+export function pollable(native, extraQueues = [], extraMethods = {}) {
 	const emitter = new EventEmitter()
 	emitter.setMaxListeners(0)
 	
@@ -57,13 +58,23 @@ export function pollable(native, extraQueues = []) {
 			emitter.removeAllListeners(eventName)
 			return wrapper
 		},
-		emit:  (...args) => emitter.emit(...args)
+		emit:  (...args) => emitter.emit(...args),
+		
+		...extraMethods
 	}
 
 	const wrapper = new Proxy(native, {
 		get(target, property) {
 			if(Object.hasOwn(overrides, property)) return overrides[property]
 			
+			if(property === "start") {
+				return (...args) => {
+					const r = target.start(...args);
+					startPolling()
+					return r
+				}
+			}
+
 			if(property === "stop" || property === "delete") {
 				return function(...args) {
 					stopPolling()

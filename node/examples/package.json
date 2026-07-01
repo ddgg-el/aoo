@@ -1,0 +1,19 @@
+{
+  "name": "aoo-node-examples",
+  "version": "1.0.0",
+  "description": "How to use AOO in Node",
+  "license": "MIT",
+  "author": "Davide Gagliardi",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "aoo-native": "file:..",
+    "naudiodon2": "^2.5.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.0.1"
+  }
+}

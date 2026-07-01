@@ -5,8 +5,6 @@ const WS_PORT = 8081
 const wss = new WebSocketServer({port: WS_PORT})
 const clients = new Set<WebSocket>
 
-let sinkAddr: {ip:string, port:number}| null = null
-
 
 function frame(ip: string, port: number, payload: Uint8Array): Buffer {
 	const ipb = Buffer.from(ip, "utf8")
@@ -34,14 +32,6 @@ wss.on("connection", (ws) => {
 		for (const packet of aooClient.pollPackets()) {
 			ws.send(frame(packet.ip, packet.port, packet.bytes), { binary: true})
 		}
-		// const packets = aooClient.pollPackets()
-		// for (const packet of packets) {
-		// 	for (const ws of clients) {
-		// 		if(ws.readyState === WebSocket.OPEN) {
-		// 			ws.send(packet.bytes, {binary: true})
-		// 		}
-		// 	}
-		// }
 	}, 5)
 	
 	ws.on("message", (data:Buffer, isBinary:boolean) => {
@@ -49,16 +39,10 @@ wss.on("connection", (ws) => {
 			const msg = JSON.parse(data.toString())
 			if(msg.type === "join") {
 				aooClient.join(msg.ip, msg.port, msg.group, msg.username)
-				// aooClient.connect(msg.ip, msg.port)
-				// aooClient.joinGroup(msg.group, msg.username)
 			}
 			return
 		}
-		// for (const peer of clients) {
-		// 	if(peer !== ws && peer.readyState === WebSocket.OPEN) {
-		// 		peer.send(data, {binary: true})
-		// 	}
-		// }
+
 		const { ip, port, payload } = unframe(data)
 		// if(sinkAddr) {
 			aooClient.sendPacket(payload, ip, port)

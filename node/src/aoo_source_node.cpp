@@ -2,7 +2,7 @@
 #include "aoo.h"
 #include "aoo_endpoint_wrap.hpp"
 #include "aoo_types.h"
-#include "utils_node.hpp"
+#include "aoo_utils_node.hpp"
 #include "codec/aoo_opus.h"
 #include "codec/aoo_pcm.h"
 #include "opus_defines.h"
@@ -144,7 +144,7 @@ Napi::Value AooSourceWrap::HandleUninvite(const Napi::CallbackInfo& info)
 {
 	AooSockAddrStorage addr;
 	AooEndpoint ep;
-	if(!aoo_node_util::toEndpoint(info[0].As<Napi::Object>(), addr, ep)) {
+	if(!AooNodeUtils::toEndpoint(info[0].As<Napi::Object>(), addr, ep)) {
 		Napi::Error::New(info.Env(), "handleUninvite: bad address").ThrowAsJavaScriptException();
 		return info.Env().Undefined();
 	}
@@ -166,7 +166,7 @@ void AooSourceWrap::HandleEvent(void* user, const AooEvent* e, AooThreadLevel)
 		auto& p = e->sinkPing;
 		double rtt = aoo_ntpTimeToSeconds((p.t4 - p.t1) - (p.t3 - p.t2));
 		o.Set("type", "sinkPing");
-		o.Set("endpoint", aoo_node_util::endpointToObject(env, p.endpoint));
+		o.Set("endpoint", AooNodeUtils::endpointToObject(env, p.endpoint));
 		o.Set("rtt", Napi::Number::New(env, rtt));
 		o.Set("packetLoss", Napi::Number::New(env, p.packetLoss));
 		break;
@@ -174,20 +174,20 @@ void AooSourceWrap::HandleEvent(void* user, const AooEvent* e, AooThreadLevel)
 	case kAooEventSinkAdd:
 	case kAooEventSourceAdd:
 		o.Set("type", e->type == kAooEventSinkAdd ? "sinkAdd" : "sinkRemove");
-		o.Set("endpoint", aoo_node_util::endpointToObject(env, e->endpoint.endpoint));
+		o.Set("endpoint", AooNodeUtils::endpointToObject(env, e->endpoint.endpoint));
 		break;
 	case kAooEventInvite:
 		o.Set("type", "invite");
-		o.Set("endpoint", aoo_node_util::endpointToObject(env, e->invite.endpoint));
+		o.Set("endpoint", AooNodeUtils::endpointToObject(env, e->invite.endpoint));
 		o.Set("token", Napi::Number::New(env, e->invite.token));
 		break;
 	case kAooEventUninvite:
 		o.Set("type", "uninvite");
-		o.Set("endpoint", aoo_node_util::endpointToObject(env, e->uninvite.endpoint));
+		o.Set("endpoint", AooNodeUtils::endpointToObject(env, e->uninvite.endpoint));
 		o.Set("token", Napi::Number::New(env, e->uninvite.token));
 		break;
 	default:
-		o.Set("type", Napi::String::New(env, aoo_node_util::eventTypeName(e->type)));
+		o.Set("type", Napi::String::New(env, AooNodeUtils::eventTypeName(e->type)));
 		break;
 	}
 	self->pollCtx_->arr.Set(self->pollCtx_->n++, o);
@@ -221,7 +221,7 @@ Napi::Value AooSourceWrap::Activate(const Napi::CallbackInfo& info)
 {
 	AooSockAddrStorage addr;
 	AooEndpoint ep;
-	if(!aoo_node_util::toEndpoint(info[0].As<Napi::Object>(), addr, ep)) {
+	if(!AooNodeUtils::toEndpoint(info[0].As<Napi::Object>(), addr, ep)) {
 		Napi::Error::New(info.Env(), "activate: bad address").ThrowAsJavaScriptException();
 		return info.Env().Undefined();
 	}
@@ -233,7 +233,7 @@ Napi::Value AooSourceWrap::SetSinkChannelOffset(const Napi::CallbackInfo& info)
 {
 	AooSockAddrStorage addr;
 	AooEndpoint ep;
-	if(!aoo_node_util::toEndpoint(info[0].As<Napi::Object>(), addr, ep)) {
+	if(!AooNodeUtils::toEndpoint(info[0].As<Napi::Object>(), addr, ep)) {
 		Napi::Error::New(info.Env(), "setSinkChannelOffset: bad address").ThrowAsJavaScriptException();
 		return info.Env().Undefined();
 	}

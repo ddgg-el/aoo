@@ -11,6 +11,7 @@
 #include "aoo_client.hpp"
 #include "aoo_types.h"
 #include "net/udp_server.hpp"
+#include "aoo_utils_node.hpp"
 
 namespace aoo { class udp_server; }
 
@@ -38,33 +39,30 @@ private:
 
 	Napi::Value PollPackets(const Napi::CallbackInfo& info);
 	Napi::Value UserId(const Napi::CallbackInfo& info);
+	Napi::Value Connected(const Napi::CallbackInfo& info);
 	Napi::Value GroupId(const Napi::CallbackInfo& info);
 	Napi::Value SendMessage(const Napi::CallbackInfo& info);
 
 	Napi::Value RemoveSource(const Napi::CallbackInfo& info); 
 	Napi::Value RemoveSink(const Napi::CallbackInfo& info);
 
+	Napi::Value LeaveGroup(const Napi::CallbackInfo& info);
+	Napi::Value Disconnect(const Napi::CallbackInfo& info);
+
 	void startThreads(bool external);
 
 	static AooInt32 AOO_CALL SendFunc(void* user, const AooByte* data, AooInt32 size, const void* address, AooAddrSize addrlen, AooFlag flags);
 	std::unique_ptr<aoo::udp_server> udp_server_;
+
+	static void AOO_CALL OnResponse(void* user, const AooRequest*, AooError result, const AooResponse* resp);
+	static void AOO_CALL OnJoinConnected(void* user, const AooRequest*, AooError result, const AooResponse* resp);
+	void ResolvePending(Napi::Env env);
+	void RejectPending(Napi::Env env, const char* reason);
 	
 	static void HandleEvent(void* user, const AooEvent* e, AooThreadLevel level);
 	void stopThreads();
-	
-	struct InPacket {
-		std::vector<AooByte> data;
-		std::string ip;
-		uint16_t port;
-	};
 
-	struct PollCtx { 
-		Napi::Env env; 
-		Napi::Array arr;
-		uint32_t n;
-	};
-
-	PollCtx* pollCtx_ = nullptr;
+	AooNodeUtils::PollCtx* pollCtx_ = nullptr;
 	AooClient::Ptr client_;
 	bool running_ = false;
 
@@ -75,13 +73,20 @@ private:
 	std::string host_;
 	std::string group_;
 	std::string user_;
+	std::string password_ = "_";
 	std::atomic<AooId> userId_{kAooIdInvalid};
 	std::atomic<AooId> groupId_{ kAooIdInvalid };
 	std::unordered_map<std::string, AooId> peerIds_;
 	std::unordered_map<AooId, std::string> peerNames_;
 
 	std::mutex inMutex_;
-	std::vector<InPacket> inQueue;
+	std::vector<AooNodeUtils::InPacket> inQueue;
+
+
+	AooId nextReqId_ = 0;
+	std::unordered_map<AooId, Napi::Promise::Deferred> pending_;
+	std::vector<AooNodeUtils::CompletedRequest> completed_;
+	std::mutex reqMutex_;
 
 	std::atomic<bool> connected_{false};
 };

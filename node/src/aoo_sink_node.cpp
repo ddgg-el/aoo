@@ -4,7 +4,7 @@
 #include "aoo_defines.h"
 #include "aoo_endpoint_wrap.hpp"
 #include "aoo_types.h"
-#include "utils_node.hpp"
+#include "aoo_utils_node.hpp"
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -107,36 +107,36 @@ void AooSinkWrap::HandleEvent(void* user, const AooEvent* e, AooThreadLevel) {
 		auto& p = e->sourcePing;
 		double rtt = aoo_ntpTimeToSeconds((p.t4 - p.t1) - (p.t3 - p.t2));
 		o.Set("type", "sourcePing");
-		o.Set("endpoint", aoo_node_util::endpointToObject(env, p.endpoint));
+		o.Set("endpoint", AooNodeUtils::endpointToObject(env, p.endpoint));
 		o.Set("rtt", Napi::Number::New(env, rtt));
 		break;
 	}
 	case kAooEventSourceAdd:
 	case kAooEventSourceRemove:
 		o.Set("type", e->type == kAooEventSourceAdd ? "sourceAdd" : "sourceRemove");
-		o.Set("endpoint", aoo_node_util::endpointToObject(env, e->endpoint.endpoint));
+		o.Set("endpoint", AooNodeUtils::endpointToObject(env, e->endpoint.endpoint));
 		break;
 	case kAooEventStreamStart:
 		o.Set("type", "streamStart");
-		o.Set("endpoint", aoo_node_util::endpointToObject(env, e->streamStart.endpoint));
+		o.Set("endpoint", AooNodeUtils::endpointToObject(env, e->streamStart.endpoint));
 		break;
 	case kAooEventStreamStop:
 		o.Set("type", "streamStop");
-		o.Set("endpoint", aoo_node_util::endpointToObject(env, e->endpoint.endpoint));
+		o.Set("endpoint", AooNodeUtils::endpointToObject(env, e->endpoint.endpoint));
 		break;
 	case kAooEventStreamState: {
 		auto& p = e->streamState;
 		const char* st = p.state == kAooStreamStateActive ? "active"
 		               : p.state == kAooStreamStateBuffering ? "buffering" : "inactive";
 		o.Set("type", "streamState");
-		o.Set("endpoint", aoo_node_util::endpointToObject(env, p.endpoint));
+		o.Set("endpoint", AooNodeUtils::endpointToObject(env, p.endpoint));
 		o.Set("state", Napi::String::New(env, st));
 		break;
 	}
 	case kAooEventFormatChange: {
 		auto& p = e->formatChange;
 		o.Set("type", "formatChange");
-		o.Set("endpoint", aoo_node_util::endpointToObject(env, p.endpoint));
+		o.Set("endpoint", AooNodeUtils::endpointToObject(env, p.endpoint));
 		if (p.format) {
 			o.Set("codec", Napi::String::New(env, p.format->codecName));
 			o.Set("channels", Napi::Number::New(env, p.format->numChannels));
@@ -146,7 +146,7 @@ void AooSinkWrap::HandleEvent(void* user, const AooEvent* e, AooThreadLevel) {
 		break;
 	}
 	default:
-		o.Set("type", Napi::String::New(env, aoo_node_util::eventTypeName(e->type)));
+		o.Set("type", Napi::String::New(env, AooNodeUtils::eventTypeName(e->type)));
 		break;
 	}
 	self->pollCtx_->arr.Set(self->pollCtx_->n++, o);
@@ -170,7 +170,7 @@ Napi::Value AooSinkWrap::UninviteAll(const Napi::CallbackInfo& info) {
 }
 Napi::Value AooSinkWrap::UninviteSource(const Napi::CallbackInfo& info) {
 	AooSockAddrStorage st; AooEndpoint ep;
-	if (!aoo_node_util::toEndpoint(info[0].As<Napi::Object>(), st, ep)) {
+	if (!AooNodeUtils::toEndpoint(info[0].As<Napi::Object>(), st, ep)) {
 		Napi::Error::New(info.Env(), "uninviteSource: bad address").ThrowAsJavaScriptException();
 		return info.Env().Undefined();
 	}
@@ -179,7 +179,7 @@ Napi::Value AooSinkWrap::UninviteSource(const Napi::CallbackInfo& info) {
 }
 Napi::Value AooSinkWrap::ResetSource(const Napi::CallbackInfo& info) {
 	AooSockAddrStorage st; AooEndpoint ep;
-	if (!aoo_node_util::toEndpoint(info[0].As<Napi::Object>(), st, ep)) {
+	if (!AooNodeUtils::toEndpoint(info[0].As<Napi::Object>(), st, ep)) {
 		Napi::Error::New(info.Env(), "resetSource: bad address").ThrowAsJavaScriptException();
 		return info.Env().Undefined();
 	}
@@ -188,7 +188,7 @@ Napi::Value AooSinkWrap::ResetSource(const Napi::CallbackInfo& info) {
 }
 Napi::Value AooSinkWrap::GetBufferFillRatio(const Napi::CallbackInfo& info) {
 	AooSockAddrStorage st; AooEndpoint ep;
-	if (!aoo_node_util::toEndpoint(info[0].As<Napi::Object>(), st, ep)) {
+	if (!AooNodeUtils::toEndpoint(info[0].As<Napi::Object>(), st, ep)) {
 		Napi::Error::New(info.Env(), "getBufferFillRatio: bad address").ThrowAsJavaScriptException();
 		return info.Env().Undefined();
 	}

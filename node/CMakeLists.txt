@@ -11,7 +11,7 @@ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/.. ${CMAKE_CURRENT_BINARY_DIR}/aoo)
 
 add_library(${PROJECT_NAME} SHARED 
 	src/addon.cpp 
-	src/utils_node.cpp
+	src/aoo_utils_node.cpp
 	src/aoo_client_node.cpp
 	src/aoo_source_node.cpp
 	src/aoo_sink_node.cpp

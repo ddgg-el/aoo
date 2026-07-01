@@ -18,9 +18,19 @@ function loadAddon() {
 
 export class AooClient {
   constructor() {
-    return pollable(new aoo.AooClient(), 
-    [{ pollMethod: "pollPackets", eventName: "packet"}]
-  ) 
+    /** @type AooClient */
+    const client = pollable(
+      new aoo.AooClient(), 
+      [{ pollMethod: "pollPackets", eventName: "packet"}],
+      {
+        async close() {
+          try{ await client.leaveGroup() } catch {}
+          try{ await client.disconnect() } catch {}
+          client.stop()
+        }
+      }
+    )
+    return client  
   }
 }
 
