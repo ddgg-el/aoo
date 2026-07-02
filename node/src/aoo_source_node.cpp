@@ -1,6 +1,7 @@
 #include "aoo_source_node.hpp"
 #include "aoo.h"
 #include "aoo_endpoint_wrap.hpp"
+#include "aoo_events.h"
 #include "aoo_types.h"
 #include "aoo_utils_node.hpp"
 #include "codec/aoo_opus.h"
@@ -102,7 +103,8 @@ Napi::Value AooSourceWrap::StartStream(const Napi::CallbackInfo& info)
 
 Napi::Value AooSourceWrap::StopStream(const Napi::CallbackInfo& info)
 {
-	source_->stopStream(0);
+	AooInt32 offset = (info.Length() > 0 && info[0].IsNumber()) ? info[0].As<Napi::Number>().Int32Value() : 0;
+	source_->stopStream(offset);
 	return info.Env().Undefined();
 }
 
@@ -172,7 +174,7 @@ void AooSourceWrap::HandleEvent(void* user, const AooEvent* e, AooThreadLevel)
 		break;
 	}
 	case kAooEventSinkAdd:
-	case kAooEventSourceAdd:
+	case kAooEventSinkRemove:
 		o.Set("type", e->type == kAooEventSinkAdd ? "sinkAdd" : "sinkRemove");
 		o.Set("endpoint", AooNodeUtils::endpointToObject(env, e->endpoint.endpoint));
 		break;
@@ -186,6 +188,10 @@ void AooSourceWrap::HandleEvent(void* user, const AooEvent* e, AooThreadLevel)
 		o.Set("endpoint", AooNodeUtils::endpointToObject(env, e->uninvite.endpoint));
 		o.Set("token", Napi::Number::New(env, e->uninvite.token));
 		break;
+	case kAooEventFrameResend:
+		o.Set("type", "frameResend");
+		o.Set("endpoint", AooNodeUtils::endpointToObject(env, e->frameResend.endpoint));
+		o.Set("count", e->frameResend.count);
 	default:
 		o.Set("type", Napi::String::New(env, AooNodeUtils::eventTypeName(e->type)));
 		break;

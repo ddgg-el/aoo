@@ -131,6 +131,7 @@ void AooSinkWrap::HandleEvent(void* user, const AooEvent* e, AooThreadLevel) {
 		o.Set("type", "streamState");
 		o.Set("endpoint", AooNodeUtils::endpointToObject(env, p.endpoint));
 		o.Set("state", Napi::String::New(env, st));
+		o.Set("sampleOffset", Napi::Number::New(env, p.sampleOffset));
 		break;
 	}
 	case kAooEventFormatChange: {
@@ -143,6 +144,39 @@ void AooSinkWrap::HandleEvent(void* user, const AooEvent* e, AooThreadLevel) {
 			o.Set("sampleRate", Napi::Number::New(env, p.format->sampleRate));
 			o.Set("blockSize", Napi::Number::New(env, p.format->blockSize));
 		}
+		break;
+	}
+	case kAooEventStreamLatency: {
+		auto& p = e->streamLatency;
+		o.Set("type", "streamLatency");
+		o.Set("endpoint", AooNodeUtils::endpointToObject(env, p.endpoint));
+		o.Set("sourceLatency", Napi::Number::New(env, p.sourceLatency));
+		o.Set("sinkLatency",   Napi::Number::New(env, p.sinkLatency));
+		o.Set("bufferLatency", Napi::Number::New(env, p.bufferLatency));
+		break;
+	}
+	case kAooEventBufferUnderrun:
+	case kAooEventBufferOverrun:
+		o.Set("type", e->type == kAooEventBufferUnderrun ? "bufferUnderrun" : "bufferOverrun");
+		o.Set("endpoint", AooNodeUtils::endpointToObject(env, e->bufferUnderrun.endpoint));  // same layout; avoids the `bufferOverrrun` typo
+		break;
+	case kAooEventBlockDrop:
+	case kAooEventBlockResend:
+	case kAooEventBlockXRun: {
+		auto& p = e->blockDrop;                        // AooEventBlock — identical for all three
+		o.Set("type", e->type == kAooEventBlockDrop ? "blockDrop"
+					: e->type == kAooEventBlockResend ? "blockResend" : "blockXRun");
+		o.Set("endpoint", AooNodeUtils::endpointToObject(env, p.endpoint));
+		o.Set("count", Napi::Number::New(env, p.count));
+		break;
+	}
+	case kAooEventStreamTime: {
+		auto& p = e->streamTime;
+		o.Set("type", "streamTime");
+		o.Set("endpoint",     AooNodeUtils::endpointToObject(env, p.endpoint));
+		o.Set("sourceTime",   Napi::Number::New(env, aoo_ntpTimeToSeconds(p.sourceTime)));
+		o.Set("sinkTime",     Napi::Number::New(env, aoo_ntpTimeToSeconds(p.sinkTime)));
+		o.Set("sampleOffset", Napi::Number::New(env, p.sampleOffset));
 		break;
 	}
 	default:

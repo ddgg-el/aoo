@@ -13,6 +13,7 @@
     }
   },
   "files": [
+    "core.cjs",
     "index.cjs",
     "index.mjs",
     "index.d.ts",

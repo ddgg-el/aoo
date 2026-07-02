@@ -70,7 +70,7 @@ namespace AooNodeUtils {
 		exports.Set("aoo_version",   Napi::Function::New(env, Version));
 		exports.Set("aoo_strerror",  Napi::Function::New(env, StrError));
 		exports.Set("aoo_terminate", Napi::Function::New(env, Terminate));
-		exports.Set("messageType",   Napi::Function::New(env, MessageType));
+		exports.Set("aoo_messageType",   Napi::Function::New(env, MessageType));
 
 		auto evt = Napi::Object::New(env);
 		for (auto& [name, val] : kEventTypes) {

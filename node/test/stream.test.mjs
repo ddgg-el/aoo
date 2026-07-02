@@ -2,7 +2,7 @@
 import test from "node:test"
 import assert from "node:assert/strict"
 import { makeLoopback } from "./loopback.mjs"
-import { AooDataType, messageType, AooMsgType } from "aoo-native"
+import { AooDataType, aoo_messageType, AooMsgType } from "aoo-native"
 
 test("stream messages travel source -> sink", async () => {
 	const lb = makeLoopback()
@@ -16,11 +16,11 @@ test("stream messages travel source -> sink", async () => {
 	lb.dispose()
 })
 
-test("messageType() identifies a source's outgoing packet as sink-typed", () => {
+test("aoo_messageType() identifies a source's outgoing packet as sink-typed", () => {
 	const lb = makeLoopback()
 	let seen = -1
 	lb.source.process(lb.block)
-	lb.source.send((bytes) => { if (seen < 0) seen = messageType(bytes) })
+	lb.source.send((bytes) => { if (seen < 0) seen = aoo_messageType(bytes) })
 	assert.equal(seen, AooMsgType.sink, `audio packets are addressed to the sink; got ${seen}`)
 	lb.dispose()
 })

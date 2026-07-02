@@ -14,39 +14,41 @@ const GROUP = "itest"
  */
 const delay = (ms) => new Promise((r) => setTimeout(r, ms))
 
-/**
- * 
- * @param { AooClient | AooServer } obj 
- * @param { AooClientEvent[] | AooServerEvent[] } into 
- * @param {*} ms 
- * @returns 
- */
-function pump(obj, into, ms = 25) {
-	obj.pollEvents()
-	const id = setInterval(() => into.push(...obj.pollEvents()), ms)
-	return () => clearInterval(id)
-}
 async function waitFor(fn, timeoutMs = 5000) {
 	const end = Date.now() + timeoutMs
 	while (Date.now() < end) { if (fn()) return true; await delay(50) }
 	return false
 }
 
+/**
+ * 
+ * @param { AooClient | AooServer } obj 
+ * @returns 
+ */
+function collect(obj) {
+	/** @type { any[]} */
+	const events = []
+	obj.on("event", (ev) => events.push(ev))
+	return events
+}
+
 test("server + two clients: discovery, peer message, notification", async (t) => {
 	const server = new AooServer(); server.start(PORT)
 	/** @type AooServerEvent[] */
-	const serverEvents = []; 
-	const stopS = pump(server, serverEvents)
+	const serverEvents = collect(server); 
 
-	const a = new AooClient(); a.start(0); a.join("localhost", PORT, GROUP, "alice")
-	const b = new AooClient(); b.start(0); b.join("localhost", PORT, GROUP, "bob")
+	const a = new AooClient(); a.start(0); 
+	const b = new AooClient(); b.start(0); 
 	/** @type AooClientEvent[]   */
-	const aEv = []
+	const aEv = collect(a)
 	/** @type AooClientEvent[]   */
-	const bEv = []
-	const stopA = pump(a, aEv), stopB = pump(b, bEv)
+	const bEv = collect(b)
 
-	t.after(() => { stopA(); stopB(); stopS(); a.stop(); b.stop(); server.stop() })
+	t.after(() => { a.stop(); b.stop(); server.stop() })
+	
+	await a.join("localhost", PORT, GROUP, "alice")
+	await b.join("localhost", PORT, GROUP, "bob")
+
 
 	// discovery both ways
 	assert.ok(await waitFor(() =>
